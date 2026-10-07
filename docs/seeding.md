@@ -24,7 +24,7 @@ python3 tools/storyblok/editor.py       # 3. Visual Editor: preview environments
 `seed.py --only authors,faqs,posts,guides,spotlights,settings,pages` loads a subset. Authors and FAQs are always (re)loaded when a
 later section needs their uuids (posts and guides reference them).
 
-**A space that still has the earlier fixed-layout model** (this one, until the prune runs) is upgraded additively with
+**A space that still has the earlier fixed-layout model** (this one had it until the prune of 7 October 2026) is upgraded additively with
 `python3 tools/storyblok/blocks.py`: it creates the `pages/` stories and gives every post a `content` text block and a `read_time`, leaving the old
 fields filled.
 
