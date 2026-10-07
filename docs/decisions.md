@@ -124,8 +124,11 @@ chip resets the controls.
 via the cookie (guest carts).
 
 ### D20. Optimistic quantity editing
-**Decision.** Update totals immediately, save after 500 ms, reconcile with `router.refresh()`.
-**Why.** Quantity buttons feel instant; a failed save shows an error and the next refresh restores the server's numbers.
+**Decision.** Update totals immediately, save after 500 ms, reconcile with `router.refresh()`. The optimistic subtotal stays on screen
+until fresh server data has arrived (a `synced` flag in `CartView`).
+**Why.** Quantity buttons feel instant; a failed save shows an error and the next refresh restores the server's numbers. Falling back
+to the props as soon as the save ended showed the previous subtotal for a moment (new, old, new), so the flag keeps the optimistic
+total until the refreshed props arrive.
 
 ## Design
 

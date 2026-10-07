@@ -181,7 +181,8 @@ faceted search with `categoryEntityId`, which includes all descendants, instead 
   1. A quantity change updates the line total and the subtotal immediately.
   2. The save is debounced 500 ms per line; "Updating…" shows while anything is pending; checkout is disabled meanwhile.
   3. On success it calls `router.refresh()` to reload the server's numbers; on failure it shows an error and the server's
-     numbers return on the next refresh.
+     numbers return on the next refresh. The subtotal shows the optimistic total until those fresh numbers arrive, so it never flashes
+     the previous value in between.
   4. Removing is quantity 0 (saved immediately).
 - **`QtyStepper`**: −, a typeable field (commits on blur/Enter), +; Arrow Up/Down keys; clamped to 1–999; accessible labels.
 - **Checkout**: the cart's `redirectedCheckoutUrl` (BigCommerce hosted checkout) is created on each cart read.
