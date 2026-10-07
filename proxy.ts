@@ -8,6 +8,13 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const first = pathname.split("/")[1];
 
+  // The Visual Editor opens a story at its slug: the Home story is `home` (`fr/home` in French), which the site serves at `/`.
+  if (pathname === "/home" || pathname === "/fr/home") {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname === "/home" ? "/en" : "/fr";
+    return NextResponse.rewrite(url);
+  }
+
   if (first === "fr") return NextResponse.next();
 
   if (first === "en") {
