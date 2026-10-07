@@ -1,4 +1,4 @@
-"""Seed content for Contentstack: fictional authors and generic B2B commerce articles.
+"""Seed content for Storyblok: fictional authors and generic B2B commerce articles.
 
 Each post is (title, intro, (heading1, paragraph1), (heading2, paragraph2), [takeaways]).
 """

@@ -1,22 +1,24 @@
 # Commerce B2B storefront
 
-**Live:** https://contentstack-commerce-b2b.vercel.app (English) and https://contentstack-commerce-b2b.vercel.app/fr (French)
+**Live:** https://storyblok-commerce-b2b.vercel.app (English) and https://storyblok-commerce-b2b.vercel.app/fr (French)
 
 A headless B2B storefront for trade batteries. **Content** (pages, articles, guides, FAQs, navigation, banners) lives in
-**Contentstack**; the **catalog, prices and cart** live in **BigCommerce**; **Next.js 16** (App Router) composes them.
-The site is bilingual (English at `/`, French at `/fr`) and editors can edit it visually in Contentstack.
+**Storyblok**; the **catalog, prices and cart** live in **BigCommerce**; **Next.js 16** (App Router) composes them.
+The site is bilingual (English at `/`, French at `/fr`) and editors can edit it visually in Storyblok's Visual Editor.
+
+This is the same storefront as the ContentStack and Amplience versions (same pages, images and UI), with Storyblok as the CMS.
 
 ![Commerce B2B homepage: photo hero, category mosaic and CMS-driven content, in the Workbench light theme](docs/images/homepage.jpg)
 
 ```
-  Contentstack (EU)               BigCommerce (headless channel)
-  content, 2 locales              catalog, prices, cart, checkout
-        │  Delivery SDK                   │  Storefront GraphQL
+  Storyblok (EU)                  BigCommerce (headless channel)
+  content, 2 languages            catalog, prices, cart, checkout
+        │  Content Delivery API           │  Storefront GraphQL
         └──────────────┐      ┌──────────┘
                        ▼      ▼
                  Next.js 16 storefront  ──►  Visitors (EN / FR)
                        ▲
-        Live Preview + Visual Editor (editors)
+             Visual Editor (editors)
 ```
 
 ## What is in it
@@ -28,8 +30,8 @@ The site is bilingual (English at `/`, French at `/fr`) and editors can edit it 
 | **Product page** | Gallery, price, stock, key specs, volume pricing, description, spec table, related guides and products, structured data |
 | **Cart** | Add to cart, dynamic quantity stepper with instant totals, remove, hosted checkout hand-off |
 | **Content** | Blog (36 articles, 6 authors), 6 buying guides, 15 FAQs, banners, announcement bar, navigation |
-| **Languages** | English and French: routes, UI text, prices, dates and all Contentstack entries |
-| **Editing** | Live Preview and Visual Editor with click-to-edit fields |
+| **Languages** | English and French: routes, UI text, prices, dates and all Storyblok content (field-level translation) |
+| **Editing** | Storyblok Visual Editor: click a block to edit it, live updates while typing, English and French |
 | **Design** | "Workbench": light theme, 1100px pages, photography-led |
 
 ## Screenshots
@@ -48,14 +50,14 @@ The site is bilingual (English at `/`, French at `/fr`) and editors can edit it 
 <td><img src="docs/images/guide.jpg" alt="Buying guide"><br><sub>Buying guide with numbered steps and recommended products</sub></td>
 </tr>
 <tr>
-<td><img src="docs/images/cs-visual-editor-en.jpg" alt="Visual Editor on the English home page"><br><sub>Visual Editor: click a field on the page to edit it, the form stays in sync</sub></td>
-<td><img src="docs/images/cs-content-types.jpg" alt="Contentstack content types"><br><sub>The ten content types in Contentstack</sub></td>
+<td><img src="docs/images/home-fr.jpg" alt="The French home page"><br><sub>The French home page: content from the same Storyblok stories</sub></td>
+<td><img src="docs/images/blog-post.jpg" alt="Blog post"><br><sub>A blog post: rich text from Storyblok plus an author card</sub></td>
 </tr>
 </table>
 
 ## Quick start
 
-Requirements: Node 22+, Python 3.12+ with Pillow (only for the seeding scripts), a Contentstack stack and a BigCommerce
+Requirements: Node 22+, Python 3.12+ with Pillow (only for the seeding scripts), a Storyblok space and a BigCommerce
 store with a storefront channel.
 
 ```bash
@@ -69,15 +71,15 @@ Common commands:
 
 ```bash
 npm run dev          # development server (Turbopack)
+npm run dev:https    # same over HTTPS, needed to edit in the Storyblok Visual Editor
 npm run lint         # ESLint
 npx tsc --noEmit     # type-check
 npm run build        # production build
 
-# Seed the stack with sample content (idempotent; needs CONTENTSTACK_MANAGEMENT_TOKEN)
-python3 scripts/seed/schemas.py      # content types
-python3 scripts/seed/seed.py         # authors, 36 posts, blog listing
-python3 scripts/seed/seed_extra.py   # FAQs, guides, spotlights, nav, banners, pages
-python3 scripts/seed/seed_fr.py      # French versions of everything
+# Model and seed the space (idempotent; needs STORYBLOK_OAUTH_TOKEN)
+python3 scripts/seed/schemas.py      # French language + components (content model)
+python3 scripts/seed/seed.py         # images and 76 stories, English + French, published
+python3 scripts/seed/editor.py       # Visual Editor preview environments and real paths
 ```
 
 ## Project layout
@@ -95,11 +97,11 @@ app/
 proxy.ts                     locale routing (English rewritten to /en, French under /fr)
 components/                  UI building blocks (cards, hero, mega menu, filters, cart…)
 lib/
-  contentstack.ts            stack client, preview, edit tags
-  site.ts  blog.ts           typed content fetchers
+  storyblok.ts               Delivery API client, draft/published, signed editor check, edit attributes
+  site.ts  blog.ts           typed content fetchers (stories mapped to the shapes the pages use)
   bigcommerce.ts             Storefront GraphQL: products, categories, search, cart
   i18n.ts                    locales, URL helpers, UI strings, label maps
-scripts/seed/                content, schemas, seeders, French translations, photos
+scripts/seed/                content model, seeders, Visual Editor setup, French translations, photos
 docs/                        documentation (start at docs/README.md)
 HISTORY.md                   every request and its result
 ```
@@ -110,11 +112,10 @@ Start with **[docs/README.md](docs/README.md)**. Highlights:
 
 - [Architecture](docs/architecture.md): how the pieces fit, routing, rendering and caching
 - [Implementation details](docs/implementation.md): how each feature works
-- [Contentstack](docs/contentstack.md): stack setup, the 10 content types, publishing
-- [Live Preview and Visual Editor](docs/live-preview-and-visual-editor.md): live sync and inline editing
+- [Storyblok](docs/storyblok.md): the space, tokens, the content model, reading and publishing
+- [Visual Editor](docs/visual-editor.md): signed preview URLs, live editing, languages, troubleshooting
 - [BigCommerce](docs/bigcommerce.md): channel, token, queries, listing, cart
 - [Internationalization](docs/i18n.md): locales, URLs, translation workflow
-- [Editorial workflow](docs/workflow.md): staging site, approval stages, production publishing rule
 - [Seeding](docs/seeding.md): sample content scripts
 - [Design system](docs/design-system.md): tokens, type, components
 - [Operations](docs/operations.md): environment variables, deployment, troubleshooting
@@ -126,6 +127,6 @@ Start with **[docs/README.md](docs/README.md)**. Highlights:
   `example.com` contact details are placeholders. Replace them before going public.
 - **Product names and brands are not translated**: they come from BigCommerce, where the store has no French
   translations. Navigation, categories, specs and all UI text are translated.
-- The Contentstack stack is on the **free plan** (10 content types maximum, currently all used).
-- Secrets live only in `.env.local` (gitignored). The management token is used by the seeding scripts, never by the
-  running storefront.
+- The Storyblok space is on a **trial plan** that ends around 21 November 2026; confirm a plan for continued use.
+- Secrets live only in `.env.local` (gitignored). The personal access token is used by the seeding scripts, never by the
+  running storefront; the live site reads published content with the Public token.

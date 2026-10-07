@@ -1,7 +1,7 @@
 # BigCommerce
 
 The storefront reads the catalog and runs the cart through BigCommerce's **Storefront GraphQL API**. Nothing from the
-catalog is copied into Contentstack except product IDs and SKUs used as keys.
+catalog is copied into Storyblok except product IDs and SKUs used as keys.
 
 ## Store and channel
 

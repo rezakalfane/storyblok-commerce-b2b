@@ -5,17 +5,17 @@ within each theme.
 
 ## Architecture
 
-### D1. Contentstack for content, BigCommerce for commerce; keyed by ID
-**Decision.** Editorial content lives in Contentstack; catalog, prices, stock and carts stay in BigCommerce. Content links
+### D1. Storyblok for content, BigCommerce for commerce; keyed by ID
+**Decision.** Editorial content lives in Storyblok; catalog, prices, stock and carts stay in BigCommerce. Content links
 to products by **product ID / SKU** (`product_spotlight.bc_product_id`, `buying_guide.recommended_bc_products`), resolved at
 request time.
 **Why.** Prices and stock must never go stale or be copied into a second system. Deleting a product only removes a card.
-**Rejected.** Syncing products into Contentstack (duplication and drift); storing prices in content.
+**Rejected.** Syncing products into Storyblok (duplication and drift); storing prices in content.
 
 ### D2. Server Components first; JavaScript only for interaction
 **Decision.** Pages render on the server; a handful of small Client Components (filters, cart, mega menu, gallery, editing
-SDK) handle interaction.
-**Why.** Fast first paint, simple data flow, and the Live Preview SSR mode works without client-side data fetching.
+bridge) handle interaction.
+**Why.** Fast first paint, simple data flow, and the Visual Editor works with server rendering (the bridge asks the server to re-render) without client-side data fetching.
 
 ### D3. Storefront GraphQL, not the REST Management API, for the storefront
 **Decision.** Read catalog and run carts through the **Storefront GraphQL API** with a channel-scoped token.
@@ -24,27 +24,26 @@ token, and supports faceted search. The Management API (admin token) is for admi
 
 ## Content model
 
-### D4. Keep FAQ, drop Case Study (the 10-type cap)
-**Decision.** The free plan allows 10 content types. When navigation needed a slot, the empty `case_study` type was
-deleted and `faq` kept.
-**Why.** FAQs answer real buyer questions (credit, delivery, fitment) and are reused by guides; case studies are marketing
-content the blog already covers. The type was empty, so nothing was lost.
+### D4. Hero banners are blocks inside the page, not separate stories
+**Decision.** In Storyblok a `hero_banner` is a nestable block in `page.hero` and `blog_listing_page.hero`. In the ContentStack version it was a
+separate entry referenced by the page (and the free plan's 10-type cap shaped other choices).
+**Why.** A hero is used once; a block is edited in place in the Visual Editor, needs no reference to resolve, and cannot be orphaned.
+**Consequence.** Reusing one hero on several pages means copying it; promote it to a story if that becomes common.
 
-### D5. UI strings in code, not in Contentstack
+### D5. UI strings in code, not in Storyblok
 **Decision.** Button and label text live in `lib/i18n.ts`.
-**Why.** A "UI strings" content type would have used another of the 10 slots. The dictionary is type-checked so a missing
-French string is a compile error.
+**Why.** The dictionary is type-checked so a missing French string is a compile error, and these strings are product UI rather than editorial content.
 **Consequence.** Editors cannot change UI labels without a developer; marketing copy (heroes, banners, nav) *is* in the CMS.
 
 ### D6. Select-field values stay English; display is mapped
 **Decision.** FAQ topics, guide audiences and spotlight badges store fixed English values and are translated for display.
-**Why.** Contentstack select choices are not localizable.
+**Why.** Storyblok option values are not translated.
 **Consequence.** Adding a choice means editing the schema and the label maps.
 
 ### D7. Category photo tiles are static
 **Decision.** The five home-page category tiles use files in `public/images/categories/` with labels from `lib/i18n.ts`.
-**Why.** Contentstack had no free content-type slot for them. They match the BigCommerce category tree one-to-one.
-**Alternative later.** A `category_tile` type (or reuse `block`) if editors need to change them.
+**Why.** They match the BigCommerce category tree one-to-one and rarely change.
+**Alternative later.** A `category_tile` block on the home `page` if editors need to change them.
 
 ## Internationalization
 
@@ -55,15 +54,16 @@ French string is a compile error.
 
 ### D9. Shared slugs across languages
 **Decision.** `/fr/blog/<english-slug>`.
-**Why.** The language switcher is exact (swap the prefix), `url` stays equal between master and localized entries, and no
-slug-mapping step is needed.
+**Why.** The language switcher is exact (swap the prefix), one story serves both languages, and no slug-mapping step is needed.
 **Trade-off.** Less SEO benefit than translated slugs. The alternative needs per-locale slug lookup in the switcher and in
 `generateStaticParams`.
 
-### D10. Fallback to English for untranslated entries
-**Decision.** `includeFallback()` on every read.
-**Why.** A partially translated site is better than gaps. Missing translations are visible to editors because the page
-shows English.
+### D10. Field-level translation, with fallback to English per field
+**Decision.** Translations live in the same story (`field__i18n__fr`) rather than in `fr/` folders of duplicated stories.
+**Why.** Editors translate next to the English text, a story is published once for all languages, references and images are shared, and an
+untranslated field returns the default value, so a partially translated site has no gaps.
+**Rejected.** Folder-level translation (one copy of every story per language): it duplicates structure and every non-text field.
+**Trade-off.** Publishing is all-or-nothing across languages.
 
 ### D11. Product text stays English until BigCommerce translates it
 **Decision.** Do not machine-translate product names or copy in code.
@@ -72,20 +72,22 @@ without code changes.
 
 ## Editing
 
-### D12. SSR live preview, not client-side rendering
-**Decision.** `ssr: true`: the preview pane re-requests HTML after each edit.
-**Why.** Our pages are Server Components. CSR mode would need client-side data fetching and a parallel rendering path for
-every page.
-**Trade-off.** Each edit is a server render (slower than CSR), but there is one code path.
+### D12. Server-rendered live preview, not client-side rendering
+**Decision.** Keep the Server Components. The Storyblok bridge (via `StoryblokLiveEditing`) sends the unsaved story to a server action that
+stores it and revalidates the page; the server renders from it.
+**Why.** One rendering path for the site and the editor, with no client-side data fetching.
+**Trade-off.** Each keystroke is a server render, and the live-edit cache is per process (intermittent on serverless; Save always reloads).
+**Rejected.** Registering one React component per Storyblok component and rendering client-side: it would replace the page components and
+the BigCommerce composition.
 
-### D13. `<meta>` page context instead of `setPageContext`
-**Decision.** Declare the entry with `contentstack:entry-uid` / `contentstack:content-type-uid` meta tags.
-**Why.** `setPageContext` posts a message that logs an error when there is no Visual Builder to acknowledge it (Timeline
-mode). Meta tags are the SDK's documented alternative.
+### D13. Keep the page components; map stories to the existing shapes
+**Decision.** `lib/blog.ts` and `lib/site.ts` map stories into the shapes the ContentStack version used, so the UI is unchanged.
+**Why.** The goal was the same UI on a different CMS. The mapping layer is the only place that knows about Storyblok.
 
-### D14. Edit tags only in preview
-**Decision.** `tagEntry()` is a no-op without preview parameters; the SDK loads only in preview or development.
-**Why.** Production HTML should carry no editing markup.
+### D14. Draft mode only for signed editor requests; edit attributes only in preview
+**Decision.** Drafts are served only when `_storyblok` comes with a valid `_storyblok_tk` signature; `editTags()` is empty otherwise; the
+bridge loads only in the editor iframe. The live site reads published content with the **Public** token.
+**Why.** `?_storyblok=1` must not reveal unpublished content, and production HTML should carry no editing markup.
 
 ## Catalog
 
@@ -143,32 +145,30 @@ guide heroes use photography, not composed product shots.
 ### D24. Idempotent Python seeders instead of manual entry
 **Decision.** All sample content is generated from data files and pushed through the Management API.
 **Why.** Reproducible, reviewable and re-runnable: schema, English, translations and images can be refreshed together.
-**Consequence.** Localized entries are copies, so the scripts must be re-run in order (English first, then French).
+**Consequence.** Each story is written whole (a `PUT` replaces its content), so manual edits to seeded stories are overwritten on the next run.
 
-### D25. Assets replaced in place
-**Decision.** An upload whose filename already exists replaces that asset's file (same UID).
-**Why.** Reusing the old file silently ignored updated crops; creating a new asset would orphan every reference.
+### D25. Assets reused by file name
+**Decision.** An image whose file name already exists in Assets is reused, not uploaded again.
+**Why.** Re-running the seed must not create duplicates. To change an image, replace the asset in Storyblok or use a new file name.
 
 ### D26. All sample content is fictional
 **Decision.** Authors, article text, FAQ policies, delivery claims and contact details are placeholders (`example.com`).
 **Why.** Nothing in the site should be mistaken for real policy or real people. Replace before launch.
 
-### D27. Review gate: staging site plus a workflow and publishing rule
-**Decision.** Edits are published to `preview` and checked on a public staging site (branch `staging`); a Contentstack workflow
-(Draft, In review, Approved) with a publishing rule lets only **Approved** entries reach `production`.
-**Why.** The gate is enforced by Contentstack, not by habit, and costs nothing on the free plan. A Release was rejected as the
-only gate because it does not block a direct publish. **Known limits** (editing an Approved entry keeps its stage, self-approval
-with one admin, code is not gated) are listed in [workflow.md](workflow.md).
+### D27. No approval gate (yet)
+**Decision.** Editors review with the Visual Editor's draft preview and then publish; there is no workflow stage or publishing rule.
+**Why.** The ContentStack version enforced Draft, In review and Approved with a publishing rule. Storyblok has no environments to gate, and
+its workflows are a separate feature; the base port keeps publishing simple.
+**Later.** Configure a Storyblok workflow (stages and who may publish) if review is required.
 
 ### D28. Staging is public and rebuilt by an empty commit
-**Decision.** Vercel deployment protection is off for previews, and a GitHub Action rebuilds `staging` from `main` with an empty
-commit on every push.
-**Why.** Contentstack's Live Preview iframe and reviewers need to open the URL without a Vercel login (Vercel adds `noindex`).
-Vercel skips a branch whose tip it already built, so the empty commit forces a fresh deployment.
+**Decision.** Vercel Authentication is off, and a GitHub Action rebuilds `staging` from `main` with an empty commit on every push.
+**Why.** The Visual Editor iframe and reviewers need to open the URL without a Vercel login. Vercel skips a branch whose tip it already
+built, so the empty commit forces a fresh deployment.
 
 ## Open questions
 
 - Will buyers **sign in** (B2B Edition companies, price lists, quotes)? Today "your negotiated prices" is aspirational copy.
 - Do we want **translated slugs** for French SEO (reverses D9)?
-- Should category tiles and the home category mosaic move into Contentstack (needs a type slot)?
-- Publish **webhooks and caching** for Contentstack reads at production traffic.
+- Should the category tiles and home mosaic move into Storyblok?
+- A **publish webhook** to revalidate the `storyblok` cache tag, and an approval workflow.
