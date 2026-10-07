@@ -34,7 +34,7 @@ blocks. All are defined in `tools/storyblok/schemas.py`.
 
 > **State of the space.** The block model was added **next to** the earlier fixed-layout model, which is still in the space (the site no longer
 > reads it). Fields and stories that belong only to the old model are listed under [Old model, pending prune](#old-model-pending-prune); the
-> prune is prepared (`schemas.py --prune`) and has not been run.
+> prune has been run (7 October 2026).
 
 ![The Block library in Storyblok](images/sb-block-library.jpg)
 *Block library (a screenshot from before the block components were added): the content types (`Content Type`) and the nestable blocks (`Nestable`).*
@@ -92,12 +92,12 @@ block in place.
 The editor opens a story at its slug (`/pages/home`, `/fr/pages/faq`, `/faqs/<slug>`...); `proxy.ts` serves those URLs for editor requests only
 ([visual-editor.md](visual-editor.md#editor-urls)).
 
-### Old model, pending prune
+### Old model, removed
 
-Still in the space and no longer read by the site: the fields `page.hero`, `page.image`, `page.intro`, `page.blocks`, `blog_post.body` and
+Removed from the space on 7 October 2026 (it was no longer read by the site): the fields `page.hero`, `page.image`, `page.intro`, `page.blocks`, `blog_post.body` and
 `hero_banner.full_width`; the `blog_listing_page` component; and the stories `home`, `faq`, the `guides/` start page and the `blog/` start page.
-`tools/storyblok/schemas.py --prune` removes them (after `tools/storyblok/backup.py`, and a reseed of posts and pages so the stories lose the old
-values). It is prepared and has not been run ([seeding.md](seeding.md#backup-and-prune)).
+`tools/storyblok/schemas.py --prune` removed them, after `tools/storyblok/backup.py` and a reseed of posts and pages so the stories lost the old
+values ([seeding.md](seeding.md#backup-and-prune)).
 
 ### Field conventions
 

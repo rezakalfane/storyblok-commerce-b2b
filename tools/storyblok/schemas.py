@@ -167,6 +167,23 @@ def remove_components(existing, prune):
         print(f"  {name}: deleted with {len(stories)} stories")
 
 
+def remove_superseded_stories(prune):
+    """The fixed-layout page stories (home, faq, and the guides and blog start pages) that the pages/ stories replace. They have the old
+    `hero` field and no `components`; with `prune` they are deleted (the blog start page goes with its component)."""
+    for slug in ("home", "faq", "guides/"):
+        st = sb.find_story(slug)
+        if not st:
+            continue
+        content = sb.api("GET", f"/stories/{st['id']}")["story"].get("content") or {}
+        if content.get("component") != "page" or "components" in content or "hero" not in content:
+            continue
+        if not prune:
+            print(f"  story {slug}: replaced by pages/ ; run with --prune to delete")
+            continue
+        sb.api("DELETE", f"/stories/{st['id']}")
+        print(f"  story {slug}: deleted")
+
+
 def main():
     space = sb.api("GET", "")["space"]
     if "fr" not in [l["code"] for l in space.get("languages", [])]:
@@ -186,6 +203,7 @@ def main():
             sb.api("POST", "/components", body={"component": comp})
             print(f"  created {comp['name']}")
     remove_components(existing, "--prune" in sys.argv)
+    remove_superseded_stories("--prune" in sys.argv)
 
 
 if __name__ == "__main__":

@@ -185,13 +185,14 @@ serves all CMSs of the switchable project. Blocks are inline in Storyblok, so or
 `/pages/<key>`, which `proxy.ts` serves for editor requests. The catalog moved to a static `products` route with the translated roots rewritten by
 `proxy.ts` (`x-catalog-root`), to leave the catch-all route free.
 
-### D30. Earlier fixed-layout model kept until a prepared prune is approved
+### D30. Earlier fixed-layout model removed after a backup
 **Decision.** The block components and fields were added next to the earlier model, and the site was switched to read only the new one. The old
 fields (`page.hero`, `page.image`, `page.intro`, `page.blocks`, `blog_post.body`, `hero_banner.full_width`), the `blog_listing_page` component and the
-stories `home`, `faq`, the `guides/` start page and the `blog/` start page are still in the space.
-**Why.** Nothing was removed while the live site could still depend on it. `tools/storyblok/schemas.py --prune` (after `backup.py` and a reseed of
-posts and pages) removes them; it is prepared and **has not been run**.
-**Later.** Run it when approved, then verify production and staging.
+stories `home`, `faq`, the `guides/` start page and the `blog/` start page stayed in the space while the live site could still depend on them.
+**Done (7 October 2026).** After the site read only the new model: `backup.py` (19 components, 87 stories, in `.backups/`, gitignored), a reseed of
+posts and pages in the final model (stories lose `body`), then `schemas.py --prune`, which removed the old fields from the components, deleted the
+`blog_listing_page` component with its start page, and deleted the superseded `home`, `faq` and `guides/` stories. The space now has 18 components.
+Production and staging pass the URL checks. Deleting stories and a component is the only way to remove them; the backup is the way back.
 
 ## Open questions
 

@@ -8,7 +8,7 @@
 | [visual-editor.md](visual-editor.md) | set up and debug the Visual Editor: signed preview URLs, the bridge and live edits, editor URLs, languages, preview environments |
 | [bigcommerce.md](bigcommerce.md) | work with the catalog: channel, token, the GraphQL queries, facets, categories, cart |
 | [i18n.md](i18n.md) | add a language or translate content: URL strategy, fallback, dictionaries, hreflang |
-| [seeding.md](seeding.md) | model the space and create or refresh sample content with the Python scripts; backup and the pending prune |
+| [seeding.md](seeding.md) | model the space and create or refresh sample content with the Python scripts; backup and prune |
 | [design-system.md](design-system.md) | build UI in the "Workbench" look: tokens, type, components, imagery |
 | [operations.md](operations.md) | set up environment variables, run, deploy and troubleshoot |
 | [decisions.md](decisions.md) | learn why choices were made, and what was rejected |

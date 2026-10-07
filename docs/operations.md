@@ -99,7 +99,7 @@ Changing a variable needs a redeploy to take effect.
 - [x] Deployed on Vercel with GitHub auto-deploy and all variables set.
 - [x] Live site reads published content with the Public token; drafts are only served for signed editor requests.
 - [x] Visual Editor environments (Production, Staging, Local) configured (no real paths: the editor opens `/pages/<key>`, which `proxy.ts` serves for editor requests).
-- [ ] Run the prepared prune of the earlier fixed-layout fields and stories (`backup.py`, reseed of posts and pages, `schemas.py --prune`; see [seeding.md](seeding.md#backup-and-prune)).
+- [x] Removed the earlier fixed-layout fields and stories (`backup.py`, reseed of posts and pages, `schemas.py --prune`; see [seeding.md](seeding.md#backup-and-prune)).
 - [ ] Confirm a Storyblok plan (the trial ends around 21 November 2026).
 - [ ] Replace all fictional sample content (authors, article text, FAQ policies, promotions, contact details).
 - [ ] Add a **publish webhook** to Next.js revalidation (tag `storyblok`) so published content shows immediately instead of within 60 seconds.
@@ -142,5 +142,5 @@ Changing a variable needs a redeploy to take effect.
 - There is no approval gate between editing and publishing (the ContentStack version had a workflow and publishing rule; Storyblok
   offers workflows and stages as a separate feature that is not configured here).
 - Live-edit updates keep the unsaved story in the memory of one server instance, which can be intermittent on serverless hosting; saving always reloads the page.
-- The space still holds the earlier fixed-layout fields and stories next to the block model until the prepared prune is run.
+- The earlier fixed-layout fields and stories were removed from the space on 7 October 2026 (backup in `.backups/`, not committed).
 - Search on the blog is a simple in-memory text match over the posts listed (at most 100).

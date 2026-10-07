@@ -115,3 +115,8 @@ included yet.
 
 ### Backup and prune prepared, not run
 **Result:** The earlier fixed-layout fields (`page.hero`, `page.image`, `page.intro`, `page.blocks`, `blog_post.body`, `hero_banner.full_width`), the `blog_listing_page` component and the stories `home`, `faq`, the `guides/` start page and the `blog/` start page are still in the space; the site no longer reads them. `tools/storyblok/backup.py` and `schemas.py --prune` (plus a reseed of posts and pages, then the deletion of the old stories) are prepared; **the prune has not been run and awaits approval**. The Storyblok screenshots in `docs/images/sb-*` predate the block model and are listed under "Screenshots to refresh" in `docs/visual-editor.md`.
+
+### The prune was run
+**Prompt:** run the prune.
+
+**Result:** `backup.py` saved 19 components and 87 stories to `.backups/` (gitignored); `seed.py --only posts,pages` rewrote the posts and the `pages/` stories in the final model (the posts lose `body`); `schemas.py --prune` removed the old fields from the `page`, `blog_post` and `hero_banner` components, deleted the `blog_listing_page` component with its start page, and deleted the superseded `home`, `faq` and `guides/` stories (a new step in the script: a component prune does not touch stories of a type that stays). The space has 18 components; production and staging pass the 26 URL checks (also the switchable project reading the same space).

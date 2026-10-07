@@ -61,7 +61,7 @@ fields filled.
 
 ## Backup and prune
 
-**Prepared, not run.** The space still holds the earlier fixed-layout model next to the blocks (the site no longer reads it): the fields `page.hero`,
+**Done on 7 October 2026.** The space held the earlier fixed-layout model next to the blocks (the site no longer read it): the fields `page.hero`,
 `page.image`, `page.intro`, `page.blocks`, `blog_post.body` and `hero_banner.full_width`; the `blog_listing_page` component; and the stories `home`,
 `faq`, the `guides/` start page and the `blog/` start page. The steps to remove them, in this order:
 

@@ -129,7 +129,7 @@ Start with **[docs/README.md](docs/README.md)**. Highlights:
 - [Visual Editor](docs/visual-editor.md): signed preview URLs, the bridge and live edits, editor URLs, languages, troubleshooting
 - [BigCommerce](docs/bigcommerce.md): channel, token, queries, listing, cart
 - [Internationalization](docs/i18n.md): locales, URLs, translation workflow
-- [Seeding](docs/seeding.md): sample content scripts, backup and the pending prune
+- [Seeding](docs/seeding.md): sample content scripts, backup and prune
 - [Design system](docs/design-system.md): tokens, type, components
 - [Operations](docs/operations.md): environment variables, deployment, troubleshooting
 - [Decisions](docs/decisions.md): why things are the way they are
@@ -142,8 +142,7 @@ Start with **[docs/README.md](docs/README.md)**. Highlights:
   directive, with BigCommerce's translated catalog URLs (`/products/...`, `/fr/produits/...`) and a language switcher that finds the
   matching page. UI text, navigation and fallbacks live in `lib/i18n.ts`.
 - The Storyblok space is on a **trial plan** that ends around 21 November 2026; confirm a plan for continued use.
-- **The prune is pending.** The space still holds the earlier fixed-layout fields and stories next to the block model (the site no longer reads
-  them). `tools/storyblok/schemas.py --prune` (after `backup.py`, and a reseed of posts and pages) is prepared and has not been run; see
-  [docs/seeding.md](docs/seeding.md).
+- **The earlier fixed-layout model has been removed** from the space (18 components now), after a backup and a reseed; see
+  [docs/seeding.md](docs/seeding.md#backup-and-prune).
 - Secrets live only in `.env.local` (gitignored). The personal access token is used by the seeding scripts, never by the
   running storefront; the live site reads published content with the Public token.
