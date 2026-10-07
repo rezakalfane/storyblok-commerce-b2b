@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Configure the Visual Editor for the space (idempotent): preview environments and the real path of each story.
+"""Configure the Visual Editor for the space (idempotent): preview environments, and no real paths on stories.
 Usage: python3 scripts/seed/editor.py
 
-The editor opens `<environment URL><story path>` (French: `fr/<path>`), so stories without a page of their own point at the
-page that shows them, and Home points at `/`.
+The editor opens `<environment URL><story slug>` (French: `fr/<slug>`). Do NOT set a "real path" on stories: Storyblok uses it as-is
+and drops the language prefix, so the French editor would open the English page. Stories without a page of their own
+(`home`, `faqs/...`, `spotlights/...`, `authors/...`, `settings/...`) are mapped to the page that shows them by `proxy.ts`.
+Earlier versions of this script set real paths; running it clears them.
 """
 import os
 import sys
@@ -17,9 +19,6 @@ ENVIRONMENTS = [
     {"name": "Local (npm run dev:https)", "location": "https://localhost:3000/"},
 ]
 
-# folder (or exact slug) -> real path of the page that displays it
-PATHS = {"home": "/", "faqs/": "/faq", "spotlights/": "/", "authors/": "/blog", "settings/": "/"}
-
 
 def main():
     sb.api("PUT", "", body={"space": {"domain": ENVIRONMENTS[0]["location"], "environments": ENVIRONMENTS}})
@@ -32,13 +31,12 @@ def main():
         if len(batch) < 100:
             break
         page += 1
-    changed = 0
+    cleared = 0
     for s in stories:
-        want = next((p for k, p in PATHS.items() if s["full_slug"] == k or (k.endswith("/") and s["full_slug"].startswith(k))), None)
-        if want is not None and s.get("path") != want:
-            sb.api("PUT", f"/stories/{s['id']}", body={"story": {"path": want}, "publish": 1})
-            changed += 1
-    print(f"  real path set on {changed} stories ({len(stories)} total)")
+        if s.get("path"):
+            sb.api("PUT", f"/stories/{s['id']}", body={"story": {"path": ""}, "publish": 1})
+            cleared += 1
+    print(f"  real path cleared on {cleared} stories ({len(stories)} total)")
 
 
 if __name__ == "__main__":

@@ -46,7 +46,7 @@ show immediately.
 
 ## Preview environments and paths
 
-Set by `python3 scripts/seed/editor.py` (Settings → Visual Editor):
+Set by `python3 scripts/seed/editor.py` (Settings → Visual Editor; the script also clears any real path):
 
 | Environment | URL |
 |---|---|
@@ -54,9 +54,11 @@ Set by `python3 scripts/seed/editor.py` (Settings → Visual Editor):
 | Staging | `https://storyblok-commerce-b2b-git-staging-rza-kalfanes-projects.vercel.app/` |
 | Local | `https://localhost:3000/` (run `npm run dev:https` and accept the certificate once; the editor requires HTTPS) |
 
-**Real path** is set on the stories that have no page of their own, so the editor opens the page that shows them: Home → `/`,
-FAQs → `/faq`, spotlights and settings → `/`, authors → `/blog`. Any new story you add keeps the default (its slug), which works
-for blog posts and guides (`/blog/<slug>`, `/guides/<slug>`).
+**No real paths.** Do not set a "real path" on stories: Storyblok uses it as-is and **drops the language prefix**, so a French edit of Home
+(real path `/`) opened the English page. Without one the editor opens `<URL><slug>` and `<URL>fr/<slug>`. Stories with no page of their own
+are mapped by `proxy.ts`, **only for editor requests** (`_storyblok` in the query): `home` and `fr/home` to the home pages, `faqs/<slug>` to `/faq`,
+`authors/<slug>` to `/blog`, and `spotlights/<slug>` and `settings/<slug>` to `/`, in both languages. Blog posts and guides need nothing
+(`/blog/<slug>`, `/guides/<slug>`).
 
 The CSP `frame-ancestors` header allows only `https://app.storyblok.com` and `https://*.storyblok.com` (and `localhost` in
 development).
@@ -73,7 +75,8 @@ development).
 |---|---|---|
 | Blank frame, "refused to connect" | the CSP does not allow the editor, or the environment URL is wrong | check the `Content-Security-Policy` header and the environment URL |
 | Page loads but nothing is clickable | draft mode not on (bad or old signature), or the preview token differs from the deployment's | open the page from the editor again; check `STORYBLOK_PREVIEW_TOKEN` on that deployment |
-| Editor opens a 404 (`/home`, `/faqs/…`) | the story has no real path | run `editor.py` or set **Config → Real path** on the story |
+| Editor opens a 404 (`/faqs/…`) | the story's folder is not mapped in `proxy.ts` (`EDITOR_PAGE`) | add the folder there; do not use a real path |
+| French editor shows the English page | the story has a **real path** (it removes the `fr/` prefix) | clear it (`editor.py`) |
 | Typing does not update the page | the bridge is not registered | `_storyblok` must equal the story id, and the page must be inside the iframe |
 | French edits show English text while typing | live-edit update not localized | see `applyLanguage()` in `lib/storyblok.ts` |
 | Local editing fails | not on HTTPS | `npm run dev:https` and accept the certificate |
