@@ -1,11 +1,11 @@
-/** Locale configuration, URL helpers and UI strings. Content itself lives in Contentstack. */
+/** Locale configuration, URL helpers and UI strings. Content itself lives in Storyblok. */
 
 export const LOCALES = ["en", "fr"] as const;
 export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "en";
 
-/** URL prefix -> Contentstack locale code. The default locale has no URL prefix. */
-export const CS_LOCALE: Record<Locale, string> = { en: "en-us", fr: "fr-fr" };
+/** Storyblok `language` parameter for each locale (the default language is addressed as `default`). */
+export const SB_LANGUAGE: Record<Locale, string> = { en: "default", fr: "fr" };
 /** Intl / number / date formatting locale. */
 export const INTL_LOCALE: Record<Locale, string> = { en: "en-GB", fr: "fr-FR" };
 export const LANGUAGE_NAME: Record<Locale, string> = { en: "English", fr: "Français" };
@@ -298,7 +298,7 @@ export function translateSpec(locale: Locale, name: string, value: string): { na
   return { name: SPEC_NAMES_FR[name] ?? name, value: v };
 }
 
-// Contentstack "select" fields store fixed English values; show them in the visitor's language.
+// Storyblok "option" fields store fixed English values; show them in the visitor's language.
 const TOPIC_FR: Record<string, string> = {
   Ordering: "Commande",
   "Pricing & Credit": "Prix et crédit",

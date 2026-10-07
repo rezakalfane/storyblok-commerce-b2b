@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { EditSupport } from "@/components/edit-support";
 import { PostGrid } from "@/components/post-card";
 import { firstAuthor, getPost } from "@/lib/blog";
-import { previewParams } from "@/lib/contentstack";
+import { previewParams } from "@/lib/storyblok";
 import { alternatesFor, fill, formatDate, getMessages, isLocale, localePath } from "@/lib/i18n";
 
 export async function generateMetadata({
@@ -35,7 +35,7 @@ export default async function PostPage({ params, searchParams }: PageProps<"/[lo
 
   return (
     <article className="page py-10 md:py-14">
-      <EditSupport preview={preview} entry={{ uid: post.uid, contentType: "blog_landing_page" }} />
+      <EditSupport preview={preview} entry={post} relations={["blog_post.related_post"]} />
 
       <Link href={localePath(locale, "/blog")} className="text-sm font-medium text-slate underline decoration-line decoration-2 underline-offset-4 hover:decoration-amber">
         {t.backToArticles}

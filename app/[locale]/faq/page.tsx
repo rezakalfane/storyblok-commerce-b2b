@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { EditSupport } from "@/components/edit-support";
 import { FaqItem } from "@/components/faq-list";
 import { Hero } from "@/components/hero";
-import { previewParams } from "@/lib/contentstack";
+import { previewParams } from "@/lib/storyblok";
 import { alternatesFor, isLocale, topicLabel } from "@/lib/i18n";
 import { getFaqs, getPage } from "@/lib/site";
 
@@ -26,7 +26,7 @@ export default async function FaqPage({ params, searchParams }: PageProps<"/[loc
 
   return (
     <>
-      <EditSupport preview={preview} entry={page && { uid: page.uid, contentType: "page" }} />
+      <EditSupport preview={preview} entry={page} />
       {hero ? (
         <Hero hero={hero} locale={locale} />
       ) : (

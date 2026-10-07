@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import type { Tags } from "@/lib/cslp";
+import type { Tags } from "@/lib/edit";
 
 export type MegaColumn = {
   label: string;

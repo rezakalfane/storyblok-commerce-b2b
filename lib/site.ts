@@ -1,8 +1,10 @@
-import type { Asset, Author, HeroBanner, Link } from "./blog";
-import { entriesOf, tagEntry, uniqueByUid, type PreviewParams } from "./contentstack";
-import type { Tagged } from "./cslp";
+import { authorFrom, getAuthorMap, heroOf, type Asset, type Author, type HeroBanner, type Link } from "./blog";
+import type { Tagged } from "./edit";
 import type { Locale } from "./i18n";
-import { rteToHtml } from "./rte";
+import {
+  asset, editTags, getStories, getStory, html, lines, link, numbers, strings, toIso,
+  type Blok, type PreviewParams, type Story,
+} from "./storyblok";
 
 // ---------------------------------------------------------------- types
 export type Navigation = Tagged & {
@@ -25,6 +27,7 @@ export type Announcement = Tagged & {
 
 export type Faq = Tagged & {
   uid: string;
+  id: number;
   title: string;
   topic: string;
   sort_order?: number;
@@ -34,6 +37,7 @@ export type Faq = Tagged & {
 
 export type Guide = Tagged & {
   uid: string;
+  id: number;
   title: string;
   url: string;
   summary: string;
@@ -50,6 +54,7 @@ export type Guide = Tagged & {
 
 export type Spotlight = Tagged & {
   uid: string;
+  id: number;
   title: string;
   bc_product_id: number;
   bc_sku?: string;
@@ -63,6 +68,7 @@ export type Spotlight = Tagged & {
 
 export type PageEntry = Tagged & {
   uid: string;
+  id: number;
   title: string;
   description?: string;
   hero?: HeroBanner[];
@@ -74,22 +80,76 @@ export type HomePage = PageEntry & {
   blocks?: { block: Tagged & { title: string; copy: string; image?: Asset; layout?: "image_left" | "image_right" } }[];
 };
 
-// ---------------------------------------------------------------- queries
-async function all<T>(contentType: string, locale: Locale, refs: string[] = [], preview?: PreviewParams) {
-  let entries = entriesOf(contentType, locale, preview);
-  if (refs.length) entries = entries.includeReference(...refs);
-  const res = await entries.query().limit(100).find<T>();
-  return (uniqueByUid((res.entries ?? []) as { uid?: string }[]) as T[]).map((e) => tagEntry(e, contentType, locale, preview));
+const ref = (s: Story) => ({ id: s.id, uuid: s.uuid });
+const draftOf = (preview?: PreviewParams) => (preview ? ({ draft: true } as const) : undefined);
+
+// ---------------------------------------------------------------- mappers
+function faqOf(s: Story, preview?: PreviewParams): Faq {
+  const c = s.content;
+  return {
+    uid: s.uuid, id: s.id, title: c.question, topic: c.topic, sort_order: c.sort_order ? Number(c.sort_order) : undefined,
+    is_featured: !!c.is_featured, answerHtml: html(c.answer), $: editTags(c, ref(s), preview),
+  };
 }
 
-export async function getNavigation(locale: Locale) {
-  return (await all<Navigation>("site_navigation", locale))[0];
+function guideOf(s: Story, authors: Map<string, Author>, preview?: PreviewParams): Guide {
+  const c = s.content;
+  const faqs = (Array.isArray(c.related_faqs) ? c.related_faqs : []).filter((f: unknown): f is Story => typeof f === "object");
+  return {
+    uid: s.uuid,
+    id: s.id,
+    title: c.title,
+    url: `/guides/${s.slug}`,
+    summary: c.summary,
+    hero_image: asset(c.hero_image),
+    audience: c.audience || undefined,
+    read_minutes: c.read_minutes ? Number(c.read_minutes) : undefined,
+    steps: (c.steps ?? []).map((b: Blok) => ({
+      step_title: b.step_title, step_body: b.step_body, pro_tip: b.pro_tip || undefined, $: editTags(b, ref(s), preview),
+    })),
+    checklist: lines(c.checklist),
+    recommended_bc_products: numbers(c.recommended_bc_products),
+    recommended_skus: strings(c.recommended_skus),
+    related_faqs: faqs.map((f: Story) => faqOf(f, preview)),
+    author: authorFrom(c.author, authors, preview),
+    $: editTags(c, ref(s), preview),
+  };
+}
+
+function spotlightOf(s: Story, preview?: PreviewParams): Spotlight {
+  const c = s.content;
+  return {
+    uid: s.uuid, id: s.id, title: c.title, bc_product_id: Number(c.bc_product_id), bc_sku: c.bc_sku || undefined, tagline: c.tagline,
+    key_features: lines(c.key_features),
+    use_cases: (c.use_cases ?? []).map((u: Blok) => ({ use_case: u.use_case, description: u.description || undefined })),
+    badge: c.badge || undefined, editorial_image: asset(c.editorial_image), is_featured: !!c.is_featured, $: editTags(c, ref(s), preview),
+  };
+}
+
+// ---------------------------------------------------------------- queries
+export async function getNavigation(locale: Locale): Promise<Navigation | undefined> {
+  const s = await getStory("settings/navigation", locale);
+  if (!s) return undefined;
+  const c = s.content;
+  return {
+    header_links: (c.header_links ?? []).map((l: Blok) => ({ label: l.label, href: l.href, highlight: !!l.highlight })),
+    footer_columns: (c.footer_columns ?? []).map((col: Blok) => ({
+      heading: col.heading,
+      links: (col.links ?? []).map((l: Blok) => ({ label: l.label, href: l.href })),
+    })),
+    contact: { sales_email: c.sales_email, support_phone: c.support_phone, opening_hours: c.opening_hours },
+    legal_text: c.legal_text,
+  };
 }
 
 /** First announcement that is active, in its date window and aimed at this audience. */
 export async function getAnnouncement(locale: Locale, audience: "guests" | "logged_in" = "guests") {
   const now = Date.now();
-  const bars = await all<Announcement>("announcement_bar", locale);
+  const stories = await getStories({ starts_with: "settings/", content_type: "announcement_bar" }, locale);
+  const bars: Announcement[] = stories.map((s) => ({
+    uid: s.uuid, message: s.content.message, cta: link(s.content.cta_label, s.content.cta_href), style: s.content.style,
+    audience: s.content.audience, starts_at: toIso(s.content.starts_at), ends_at: toIso(s.content.ends_at), is_active: s.content.is_active !== false,
+  }));
   return bars.find(
     (b) =>
       b.is_active !== false &&
@@ -99,35 +159,51 @@ export async function getAnnouncement(locale: Locale, audience: "guests" | "logg
   );
 }
 
-type RawFaq = Omit<Faq, "answerHtml"> & { answer?: unknown };
-const toFaq = (f: RawFaq): Faq => ({ ...f, answerHtml: rteToHtml(f.answer) });
-
 export async function getFaqs(locale: Locale, preview?: PreviewParams) {
-  const faqs = (await all<RawFaq>("faq", locale, [], preview)).map(toFaq);
-  return faqs.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  const stories = await getStories({ starts_with: "faqs/", content_type: "faq" }, locale, preview);
+  return stories.map((s) => faqOf(s, preview)).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 }
 
 export async function getGuides(locale: Locale, preview?: PreviewParams) {
-  return all<Guide>("buying_guide", locale, ["author"], preview);
+  const [stories, authors] = await Promise.all([
+    getStories({ starts_with: "guides/", content_type: "buying_guide" }, locale, preview),
+    getAuthorMap(locale, !!draftOf(preview)),
+  ]);
+  return stories.map((s) => guideOf(s, authors, preview));
 }
 
 export async function getGuide(locale: Locale, slug: string, preview?: PreviewParams) {
-  const res = await entriesOf("buying_guide", locale, preview)
-    .includeReference("author", "related_faqs")
-    .query({ url: `/guides/${slug}` })
-    .find<Guide & { related_faqs?: RawFaq[] }>();
-  const guide = tagEntry(res.entries?.[0], "buying_guide", locale, preview);
-  if (!guide) return undefined;
-  return { ...guide, related_faqs: guide.related_faqs?.map(toFaq) } as Guide;
+  const [s, authors] = await Promise.all([
+    getStory(`guides/${slug}`, locale, preview, ["buying_guide.related_faqs"]),
+    getAuthorMap(locale, !!draftOf(preview)),
+  ]);
+  return s ? guideOf(s, authors, preview) : undefined;
 }
 
 export async function getSpotlights(locale: Locale, preview?: PreviewParams) {
-  return all<Spotlight>("product_spotlight", locale, [], preview);
+  const stories = await getStories({ starts_with: "spotlights/", content_type: "product_spotlight" }, locale, preview);
+  return stories.map((s) => spotlightOf(s, preview));
 }
 
+/** A `page` story by storefront URL: `/` is the Home story, `/faq` the FAQ story, `/guides` the guides folder's start page. */
 export async function getPage<T extends PageEntry = PageEntry>(locale: Locale, url: string, preview?: PreviewParams) {
-  const res = await entriesOf("page", locale, preview).includeReference("hero").query({ url }).find<T>();
-  return tagEntry(res.entries?.[0], "page", locale, preview);
+  const s = await getStory(url === "/" ? "home" : url.slice(1), locale, preview);
+  if (!s) return undefined;
+  const c = s.content;
+  const page: HomePage = {
+    uid: s.uuid,
+    id: s.id,
+    title: c.title,
+    description: c.description || undefined,
+    hero: c.hero?.[0] ? [heroOf(c.hero[0], s, preview)!] : undefined,
+    image: asset(c.image),
+    rich_text: html(c.intro) || undefined,
+    blocks: (c.blocks ?? []).map((b: Blok) => ({
+      block: { title: b.title, copy: html(b.copy), image: asset(b.image), layout: b.layout || "image_left", $: editTags(b, ref(s), preview) },
+    })),
+    $: editTags(c, ref(s), preview),
+  };
+  return page as unknown as T;
 }
 
 export const getHomePage = (locale: Locale, preview?: PreviewParams) => getPage<HomePage>(locale, "/", preview);

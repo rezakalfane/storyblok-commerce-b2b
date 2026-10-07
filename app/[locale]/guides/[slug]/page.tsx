@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { EditSupport } from "@/components/edit-support";
 import { FaqItem } from "@/components/faq-list";
 import { formatPrice, getBcProducts, productHref } from "@/lib/bigcommerce";
-import { previewParams } from "@/lib/contentstack";
+import { previewParams } from "@/lib/storyblok";
 import { alternatesFor, audienceLabel, getMessages, isLocale, localePath } from "@/lib/i18n";
 import { getGuide } from "@/lib/site";
 
@@ -34,7 +34,7 @@ export default async function GuidePage({ params, searchParams }: PageProps<"/[l
 
   return (
     <article className="page py-10 md:py-14">
-      <EditSupport preview={preview} entry={{ uid: guide.uid, contentType: "buying_guide" }} />
+      <EditSupport preview={preview} entry={guide} relations={["buying_guide.related_faqs"]} />
 
       <Link href={localePath(locale, "/guides")} className="text-sm font-medium text-slate underline decoration-line decoration-2 underline-offset-4 hover:decoration-amber">
         {t.backToGuides}

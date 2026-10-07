@@ -22,7 +22,7 @@ const body = IBM_Plex_Sans({
 
 export const metadata: Metadata = {
   title: { default: "Commerce B2B", template: "%s | Commerce B2B" },
-  description: "A B2B storefront powered by Contentstack and BigCommerce.",
+  description: "A B2B storefront powered by Storyblok and BigCommerce.",
 };
 
 export function generateStaticParams() {

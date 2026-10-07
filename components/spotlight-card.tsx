@@ -4,7 +4,7 @@ import { formatPrice, productHref, type BcProduct } from "@/lib/bigcommerce";
 import { badgeLabel, getMessages, localePath, type Locale } from "@/lib/i18n";
 import type { Spotlight } from "@/lib/site";
 
-/** Editorial content from Contentstack, with live image, price and link from BigCommerce. */
+/** Editorial content from Storyblok, with live image, price and link from BigCommerce. */
 export function SpotlightCard({ item, product, locale }: { item: Spotlight; product?: BcProduct; locale: Locale }) {
   const t = getMessages(locale);
   const showBadge = item.badge && item.badge !== "None";

@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Asset, HeroBanner } from "@/lib/blog";
-import type { Tags } from "@/lib/cslp";
+import type { Tags } from "@/lib/edit";
 import { localePath, type Locale } from "@/lib/i18n";
 
 type Props = {
@@ -16,7 +16,7 @@ type Props = {
   secondaryCta?: { label: string; href: string };
 };
 
-/** Renders a Contentstack `hero_banner` entry. The headline, description and photo are all editable inline. */
+/** Renders a `hero_banner` block. The headline, description and photo are all editable inline. */
 export function Hero({ hero, locale, variant = "page", secondImage, secondImageTags, secondaryCta }: Props) {
   const cta = hero.call_to_action;
   const copy = (

@@ -1,22 +1,13 @@
-import { API_KEY, APP_HOST, EDIT_MODE, ENVIRONMENT, type PreviewParams } from "@/lib/contentstack";
-import { LivePreview } from "./live-preview";
+import { StoryblokLiveEditing } from "@storyblok/react/rsc";
+import type { PreviewParams } from "@/lib/storyblok";
 
 /**
- * Loads Live Preview / Visual Editor tooling in preview, and in local development so editors can start editing.
- * The entry a page renders is declared with the SDK's documented <meta> tags (React hoists them into <head>),
- * so "Start Editing" opens the right entry even for custom-URL pages.
+ * Loads the Storyblok bridge for the story a page renders, only when the page is opened in the Visual Editor.
+ * Click-to-edit works from the `data-blok-*` attributes in the HTML (see `editTags`). While editing, the bridge sends the
+ * unsaved story to the server, which re-renders the page from it (live preview); saving reloads the page.
+ * `relations` lists the reference fields that should arrive resolved in those live updates.
  */
-export function EditSupport({ preview, entry }: { preview?: PreviewParams; entry?: { uid: string; contentType: string } }) {
-  if (!preview && !EDIT_MODE) return null;
-  return (
-    <>
-      {entry && (
-        <>
-          <meta name="contentstack:entry-uid" content={entry.uid} />
-          <meta name="contentstack:content-type-uid" content={entry.contentType} />
-        </>
-      )}
-      <LivePreview apiKey={API_KEY} environment={ENVIRONMENT} appHost={APP_HOST} />
-    </>
-  );
+export function EditSupport({ preview, entry, relations }: { preview?: PreviewParams; entry?: { id: number }; relations?: string[] }) {
+  if (!preview || !entry) return null;
+  return <StoryblokLiveEditing story={{ id: entry.id } as never} bridgeOptions={{ resolveRelations: relations }} />;
 }

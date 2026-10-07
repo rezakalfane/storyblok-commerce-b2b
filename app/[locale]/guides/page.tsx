@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { EditSupport } from "@/components/edit-support";
 import { GuideCard } from "@/components/guide-card";
 import { Hero } from "@/components/hero";
-import { previewParams } from "@/lib/contentstack";
+import { previewParams } from "@/lib/storyblok";
 import { alternatesFor, getMessages, isLocale } from "@/lib/i18n";
 import { getGuides, getPage } from "@/lib/site";
 
@@ -28,7 +28,7 @@ export default async function GuidesPage({ params, searchParams }: PageProps<"/[
 
   return (
     <>
-      <EditSupport preview={preview} entry={page && { uid: page.uid, contentType: "page" }} />
+      <EditSupport preview={preview} entry={page} />
       {hero ? (
         <Hero hero={hero} locale={locale} />
       ) : (

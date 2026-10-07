@@ -4,7 +4,7 @@ import { EditSupport } from "@/components/edit-support";
 import { Hero } from "@/components/hero";
 import { PostGrid } from "@/components/post-card";
 import { getListingPage, getPosts } from "@/lib/blog";
-import { previewParams } from "@/lib/contentstack";
+import { previewParams } from "@/lib/storyblok";
 import { alternatesFor, getMessages, isLocale, localePath } from "@/lib/i18n";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/blog">): Promise<Metadata> {
@@ -26,11 +26,11 @@ export default async function BlogPage({ params, searchParams }: PageProps<"/[lo
   const posts = q
     ? allPosts.filter((p) => `${p.title} ${p.seo?.meta_description ?? ""}`.toLowerCase().includes(q))
     : allPosts;
-  const hero = listing?.page_components?.find((c) => c.hero_banner?.hero_banner?.[0])?.hero_banner?.hero_banner?.[0];
+  const hero = listing?.hero;
 
   return (
     <>
-      <EditSupport preview={preview} entry={listing && { uid: listing.uid, contentType: "blog_listing_page" }} />
+      <EditSupport preview={preview} entry={listing} relations={["blog_listing_page.featured_posts", "blog_listing_page.related_posts"]} />
       {hero && <Hero hero={hero} locale={locale} />}
 
       <div className="page section space-y-14">
@@ -39,10 +39,10 @@ export default async function BlogPage({ params, searchParams }: PageProps<"/[lo
             name="q"
             defaultValue={q}
             aria-label={t.search}
-            placeholder={listing?.search?.placeholder_text ?? t.searchPlaceholder}
+            placeholder={listing?.search_placeholder ?? t.searchPlaceholder}
             className="field flex-1"
           />
-          <button className="btn btn-primary">{listing?.search?.search_button?.title ?? t.search}</button>
+          <button className="btn btn-primary">{listing?.search_button_label ?? t.search}</button>
         </form>
 
         {q ? (
@@ -54,16 +54,14 @@ export default async function BlogPage({ params, searchParams }: PageProps<"/[lo
           </section>
         ) : (
           <>
-            {listing?.page_components?.map((c, i) =>
-              c.from_blog?.featured_blogs?.length ? (
-                <section key={i}>
-                  <h2 {...(c.from_blog.$?.title_h2 ?? {})} className="mb-8">
-                    {c.from_blog.title_h2}
-                  </h2>
-                  <PostGrid posts={c.from_blog.featured_blogs} locale={locale} />
-                </section>
-              ) : null,
-            )}
+            {listing?.featured_posts.length ? (
+              <section>
+                <h2 {...(listing.$ ?? {})} className="mb-8">
+                  {listing.featured_title}
+                </h2>
+                <PostGrid posts={listing.featured_posts} locale={locale} />
+              </section>
+            ) : null}
 
             <section>
               <h2 className="mb-8">{t.allArticles}</h2>

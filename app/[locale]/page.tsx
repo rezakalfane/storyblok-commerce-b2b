@@ -8,7 +8,7 @@ import { GuideCard } from "@/components/guide-card";
 import { Hero } from "@/components/hero";
 import { SpotlightCard } from "@/components/spotlight-card";
 import { getBcProducts } from "@/lib/bigcommerce";
-import { previewParams } from "@/lib/contentstack";
+import { previewParams } from "@/lib/storyblok";
 import { alternatesFor, getMessages, isLocale, localePath } from "@/lib/i18n";
 import { getGuides, getHomePage, getSpotlights } from "@/lib/site";
 
@@ -35,7 +35,7 @@ export default async function Home({ params, searchParams }: PageProps<"/[locale
 
   return (
     <>
-      <EditSupport preview={preview} entry={home && { uid: home.uid, contentType: "page" }} />
+      <EditSupport preview={preview} entry={home} />
 
       {hero ? (
         <Hero
