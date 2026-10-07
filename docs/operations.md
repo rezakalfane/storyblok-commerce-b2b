@@ -13,7 +13,7 @@ Copy `.env.example` to `.env.local`. **All are server-side**; none use the `NEXT
 
 | Variable | Required | Meaning |
 |---|---|---|
-| `STORYBLOK_SPACE_ID` | yes | the space id (used to validate Visual Editor URLs and build edit attributes) |
+| `STORYBLOK_SPACE_ID` | yes | the space id (used to validate the Visual Editor's signed URLs and build edit attributes) |
 | `STORYBLOK_REGION` | yes | `eu`, `us`, `ca`, `ap` or `cn` (`eu` today) |
 | `STORYBLOK_PUBLIC_TOKEN` | yes in production | reads **published** content only |
 | `STORYBLOK_PREVIEW_TOKEN` | for the Visual Editor | reads drafts; also validates the editor's signed URL |
@@ -91,14 +91,15 @@ Changing a variable needs a redeploy to take effect.
 1. Set every variable above in the hosting project (Production and Preview scopes). Do **not** set the personal access token.
 2. Use the **Public** token for the live site and keep the Preview token for the Visual Editor deployments.
 3. Create a BigCommerce Storefront token whose allowed origin is the **production domain**.
-4. In Storyblok, set the Visual Editor environments to your domains (`scripts/seed/editor.py`, or Settings → Visual Editor).
-5. The CSP `frame-ancestors` rule already allows Storyblok's editor. `proxy.ts` runs on the Node.js runtime.
+4. In Storyblok, set the Visual Editor environments to your domains (`tools/storyblok/editor.py`, or Settings → Visual Editor).
+5. The CSP `frame-ancestors` rule (set per request by `proxy.ts`) already allows Storyblok's editor. `proxy.ts` runs on the Node.js runtime.
 
 ### Production readiness checklist
 
 - [x] Deployed on Vercel with GitHub auto-deploy and all variables set.
 - [x] Live site reads published content with the Public token; drafts are only served for signed editor requests.
-- [x] Visual Editor environments (Production, Staging, Local) and real paths configured.
+- [x] Visual Editor environments (Production, Staging, Local) configured (no real paths: the editor opens `/pages/<key>`, which `proxy.ts` serves for editor requests).
+- [ ] Run the prepared prune of the earlier fixed-layout fields and stories (`backup.py`, reseed of posts and pages, `schemas.py --prune`; see [seeding.md](seeding.md#backup-and-prune)).
 - [ ] Confirm a Storyblok plan (the trial ends around 21 November 2026).
 - [ ] Replace all fictional sample content (authors, article text, FAQ policies, promotions, contact details).
 - [ ] Add a **publish webhook** to Next.js revalidation (tag `storyblok`) so published content shows immediately instead of within 60 seconds.
@@ -115,6 +116,8 @@ Changing a variable needs a redeploy to take effect.
 | Empty product sections, `[bigcommerce] … failed` in the log | expired/wrong Storefront token, wrong channel host, origin mismatch | see "Renewing the token" |
 | Every page is a 404 or errors on `cdn/stories` | wrong `STORYBLOK_REGION`, space id or token | check the three variables; the region must match the space |
 | Content changes not visible | not published, or within the 60-second cache | **Publish** the story and wait a minute |
+| A page is 404 but its story exists | the page key is the story's slug inside `pages/` | create it as `pages/<key>`, with content type `page` |
+| `422` on a single story | `per_page` was sent to a single-story request | only list requests take `per_page` (`client.ts`) |
 | French page shows English text | the translatable field has no French value, or a UI string is missing | translate the field / add the string |
 | `Functions cannot be passed directly to Client Components` | a callback prop from a Server Component | pass data (strings), not functions |
 | Product page 404 | the BigCommerce path is not on the channel, or the product is not visible | check the product's channel assignment and visibility |
@@ -128,7 +131,7 @@ Changing a variable needs a redeploy to take effect.
 - Server logs include `[bigcommerce] … failed: <message>` and `[cart] … failed` lines. These are the first place to look.
 - `curl -s -X POST https://store-<hash>-<channel>.mybigcommerce.com/graphql -H "Authorization: Bearer $TOKEN" …`
   reproduces any GraphQL call.
-- Storyblok: `curl "https://api.storyblok.com/v2/cdn/stories/home?version=published&token=<public token>"` returns the published Home story;
+- Storyblok: `curl "https://api.storyblok.com/v2/cdn/stories/pages/home?version=published&token=<public token>"` returns the published Home page story;
   `python3 ~/.claude/skills/storyblok/scripts/sb_api.py GET /components` lists the model through the Management API.
 
 ## Known limitations
@@ -138,5 +141,6 @@ Changing a variable needs a redeploy to take effect.
 - Published content is cached for 60 seconds (no webhook revalidation yet).
 - There is no approval gate between editing and publishing (the ContentStack version had a workflow and publishing rule; Storyblok
   offers workflows and stages as a separate feature that is not configured here).
-- Live-edit updates use a per-process cache, which can be intermittent on serverless hosting; saving always reloads the page.
-- Search on the blog is a simple in-memory text match over the 100 most recent posts.
+- Live-edit updates keep the unsaved story in the memory of one server instance, which can be intermittent on serverless hosting; saving always reloads the page.
+- The space still holds the earlier fixed-layout fields and stories next to the block model until the prepared prune is run.
+- Search on the blog is a simple in-memory text match over the posts listed (at most 100).

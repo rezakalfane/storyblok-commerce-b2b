@@ -25,7 +25,7 @@ token, and supports faceted search. The Management API (admin token) is for admi
 ## Content model
 
 ### D4. Hero banners are blocks inside the page, not separate stories
-**Decision.** In Storyblok a `hero_banner` is a nestable block in `page.hero` and `blog_listing_page.hero`. In the ContentStack version it was a
+**Decision.** In Storyblok a `hero_banner` is a nestable block in the page's `components` list (earlier: `page.hero` and `blog_listing_page.hero`). In the ContentStack version it was a
 separate entry referenced by the page (and the free plan's 10-type cap shaped other choices).
 **Why.** A hero is used once; a block is edited in place in the Visual Editor, needs no reference to resolve, and cannot be orphaned.
 **Consequence.** Reusing one hero on several pages means copying it; promote it to a story if that becomes common.
@@ -77,20 +77,21 @@ redirect through `/api/switch-locale`; filter values are translated, so attribut
 ## Editing
 
 ### D12. Server-rendered live preview, not client-side rendering
-**Decision.** Keep the Server Components. The Storyblok bridge (via `StoryblokLiveEditing`) sends the unsaved story to a server action that
-stores it and revalidates the page; the server renders from it.
+**Decision.** Keep the Server Components. The Storyblok bridge (`registerStoryblokBridge`, started by `live-editing.tsx`) sends the unsaved story to the
+server action `liveEditUpdate`, which stores it in server memory and calls `refresh()`; the server renders from it, in the same response.
 **Why.** One rendering path for the site and the editor, with no client-side data fetching.
-**Trade-off.** Each keystroke is a server render, and the live-edit cache is per process (intermittent on serverless; Save always reloads).
+**Trade-off.** Each change is a server render, and the unsaved story is kept in the memory of one server instance (intermittent on serverless; Save always reloads).
 **Rejected.** Registering one React component per Storyblok component and rendering client-side: it would replace the page components and
 the BigCommerce composition.
 
-### D13. Keep the page components; map stories to the existing shapes
-**Decision.** `lib/blog.ts` and `lib/site.ts` map stories into the shapes the ContentStack version used, so the UI is unchanged.
-**Why.** The goal was the same UI on a different CMS. The mapping layer is the only place that knows about Storyblok.
+### D13. Keep the page components; map stories to one content model
+**Decision.** `providers/cms/storyblok/mapper.ts` maps stories into the content model in `core/content.ts` (the model of the private switchable project
+`content-commerce-b2b`), so the UI is the same on every CMS. Earlier versions mapped into the shapes of the ContentStack version (`lib/blog.ts`, `lib/site.ts`).
+**Why.** The goal was the same UI on a different CMS. The provider is the only place that knows about Storyblok.
 
 ### D14. Draft mode only for signed editor requests; edit attributes only in preview
-**Decision.** Drafts are served only when `_storyblok` comes with a valid `_storyblok_tk` signature; `editTags()` is empty otherwise; the
-bridge loads only in the editor iframe. The live site reads published content with the **Public** token.
+**Decision.** `proxy.ts` sets the trusted `x-preview` header only when `_storyblok` comes with a valid `_storyblok_tk` signature (and removes any such
+header sent by a client); the provider reads drafts only for it; `editTags()` is empty otherwise; the bridge loads only in the editor iframe. The live site reads published content with the **Public** token.
 **Why.** `?_storyblok=1` must not reveal unpublished content, and production HTML should carry no editing markup.
 
 ## Catalog
@@ -172,6 +173,25 @@ its workflows are a separate feature; the base port keeps publishing simple.
 **Decision.** Vercel Authentication is off, and a GitHub Action rebuilds `staging` from `main` with an empty commit on every push.
 **Why.** The Visual Editor iframe and reviewers need to open the URL without a Vercel login. Vercel skips a branch whose tip it already
 built, so the empty commit forces a fresh deployment.
+
+### D29. Pages and posts are ordered lists of inline blocks
+**Decision.** A `page` story holds `components` (`hero_banner`, `feature_block`, `text_block`, `image_block`, `video_block`, `collection_block`); a
+`blog_post` holds `content` (text, image, video blocks) and `read_time`. One generic `collection_block` (with a `kind`: categories, spotlights,
+guides, posts, postListing, guideListing, faqs) covers every list-like section. The pages live in a `pages/` folder (`pages/home|faq|guides|blog`),
+and `getPage(key)` reads `pages/<key>`; `app/[locale]/[...slug]` renders any such page.
+**Why.** Editors can reorder, add and remove components in every CMS (as in the Amplience version) instead of asking a developer; the same model
+serves all CMSs of the switchable project. Blocks are inline in Storyblok, so ordering is native and the Visual Editor edits a block in place.
+**Consequence.** `/blog` and `/guides` are page keys instead of folder root stories, so the old folder start pages are not needed; the editor opens
+`/pages/<key>`, which `proxy.ts` serves for editor requests. The catalog moved to a static `products` route with the translated roots rewritten by
+`proxy.ts` (`x-catalog-root`), to leave the catch-all route free.
+
+### D30. Earlier fixed-layout model kept until a prepared prune is approved
+**Decision.** The block components and fields were added next to the earlier model, and the site was switched to read only the new one. The old
+fields (`page.hero`, `page.image`, `page.intro`, `page.blocks`, `blog_post.body`, `hero_banner.full_width`), the `blog_listing_page` component and the
+stories `home`, `faq`, the `guides/` start page and the `blog/` start page are still in the space.
+**Why.** Nothing was removed while the live site could still depend on it. `tools/storyblok/schemas.py --prune` (after `backup.py` and a reseed of
+posts and pages) removes them; it is prepared and **has not been run**.
+**Later.** Run it when approved, then verify production and staging.
 
 ## Open questions
 
