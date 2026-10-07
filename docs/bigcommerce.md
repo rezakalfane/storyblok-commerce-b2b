@@ -147,12 +147,13 @@ Test carts created during development are anonymous and expire on their own.
   `@shopperPreferences(locale: "fr")` directive on the operation, which `gql()` inserts for every non-default locale
   (short code `fr`; `fr-FR` is not accepted). Names, descriptions, custom-field names and values, category names and facet
   *values* then come back translated, while facet filter *names* stay English.
-- **URLs stay shared.** BigCommerce also translates URL paths (`/produits/...`), but the storefront keeps one URL scheme with the
-  English slugs ([decisions.md](decisions.md), D9). So in a translated language: product and category `path`s are restored from the
-  default-locale catalog by entity id (`restoreProductPaths`, `defaultCategoryPaths`); a product page resolves the English path
-  first and then reads the translated content **by id** (a product path only resolves in its own language); related products,
-  breadcrumbs and cart links use the restored paths; and spec labels keep their English name as `key`, which the key-spec
-  highlights match on.
+- **Translated URLs.** BigCommerce also translates URL paths (`/produits/batteries-automobiles/...`) and **a path only resolves in its
+  own language** (a French product path returns nothing in English, and the other way round; a category's default-language path still
+  resolves in French). Pages therefore resolve the path of the page's language, links use the `path` BigCommerce returns, and `locales`
+  on a product or category gives its path in every language (default language unprefixed, others `/fr/...`) for the language switcher and
+  hreflang. Spec labels keep their default-language name as `key`, fetched by product id, which the key-spec highlights match on. See
+  [implementation.md](implementation.md#the-catalog-routes).
+
 - UI labels, spec names and common spec values in `lib/i18n.ts` and the curated category map remain as fallbacks for anything
   BigCommerce has not translated.
 - Prices are formatted per locale (`165,60 £GB` in French) but are always in the store's currency (GBP). Multi-currency

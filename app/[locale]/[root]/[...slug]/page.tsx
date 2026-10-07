@@ -17,8 +17,8 @@ import {
   type CategoryNode,
 } from "@/lib/bigcommerce";
 import {
-  alternatesFor,
-  categoryLabel,
+  alternatesFromPaths,
+  CATALOG_ROOT,
   fill,
   getMessages,
   isLocale,
@@ -26,40 +26,42 @@ import {
   translateSpec,
   type Locale,
 } from "@/lib/i18n";
+import { ensureCatalogRoot } from "@/lib/catalog-route";
 import { getGuides, getSpotlights } from "@/lib/site";
 
-// The route sits under /products, so the BigCommerce path ("/products/<category>/<slug>/") is rebuilt here.
-const bcPath = (slug: string[]) => `/products/${slug.join("/")}/`;
+// The route is /[locale]/[root]/...: the BigCommerce path ("/products/<category>/<slug>/", "/produits/<categorie>/<slug>/") is rebuilt here.
+const bcPath = (root: string, slug: string[]) => `/${root}/${slug.join("/")}/`;
 // Categories are at most two levels deep; product pages are always deeper.
 const looksLikeCategory = (slug: string[]) => slug.length <= 2;
 
-export async function generateMetadata({ params }: PageProps<"/[locale]/products/[...slug]">): Promise<Metadata> {
-  const { locale, slug } = await params;
-  if (!isLocale(locale)) return {};
+export async function generateMetadata({ params }: PageProps<"/[locale]/[root]/[...slug]">): Promise<Metadata> {
+  const { locale, root, slug } = await params;
+  if (!isLocale(locale) || root !== CATALOG_ROOT[locale]) return {};
   if (looksLikeCategory(slug)) {
-    const cat = await getCategoryByPath(bcPath(slug), locale);
-    if (cat) return { title: categoryLabel(locale, cat.name), alternates: alternatesFor(locale, `/products/${slug.join("/")}`) };
+    const cat = await getCategoryByPath(bcPath(root, slug), locale);
+    if (cat) return { title: cat.name, alternates: alternatesFromPaths(locale, cat.alternates) };
   }
-  const product = await getProductByPath(bcPath(slug), locale);
+  const product = await getProductByPath(bcPath(root, slug), locale);
   if (!product) return { title: getMessages(locale).productNotFound };
   return {
     title: product.name,
     description: product.plainDescription,
-    alternates: alternatesFor(locale, productHref(product.path)),
+    alternates: alternatesFromPaths(locale, product.alternates),
     openGraph: { title: product.name, description: product.plainDescription, images: product.image ? [product.image.url] : [] },
   };
 }
 
-export default async function CatalogPage({ params, searchParams }: PageProps<"/[locale]/products/[...slug]">) {
-  const { locale, slug } = await params;
+export default async function CatalogPage({ params, searchParams }: PageProps<"/[locale]/[root]/[...slug]">) {
+  const { locale, root, slug } = await params;
   if (!isLocale(locale)) notFound();
   const sp = await searchParams;
+  if (!(await ensureCatalogRoot(locale, root, slug, sp))) notFound();
 
   if (looksLikeCategory(slug)) {
-    const view = await CategoryView({ locale, slug, sp });
+    const view = await CategoryView({ locale, root, slug, sp });
     if (view) return view;
   }
-  return ProductView({ locale, slug });
+  return ProductView({ locale, root, slug });
 }
 
 // ---------------------------------------------------------------- category
@@ -71,9 +73,9 @@ function findNode(nodes: CategoryNode[], path: string): CategoryNode | undefined
   }
 }
 
-async function CategoryView({ locale, slug, sp }: { locale: Locale; slug: string[]; sp: Record<string, string | string[] | undefined> }) {
+async function CategoryView({ locale, root, slug, sp }: { locale: Locale; root: string; slug: string[]; sp: Record<string, string | string[] | undefined> }) {
   const t = getMessages(locale);
-  const path = bcPath(slug);
+  const path = bcPath(root, slug);
   const [cat, tree] = await Promise.all([getCategoryByPath(path, locale), getCategoryTree(locale)]);
   if (!cat) return null;
 
@@ -92,15 +94,15 @@ async function CategoryView({ locale, slug, sp }: { locale: Locale; slug: string
           <span key={c.path} className="flex gap-2">
             <span aria-hidden>/</span>
             {c.path === cat.path ? (
-              <span className="text-ink">{categoryLabel(locale, c.name)}</span>
+              <span className="text-ink">{c.name}</span>
             ) : (
-              <Link href={localePath(locale, productHref(c.path))} className="hover:text-ink hover:underline">{categoryLabel(locale, c.name)}</Link>
+              <Link href={localePath(locale, productHref(c.path))} className="hover:text-ink hover:underline">{c.name}</Link>
             )}
           </span>
         ))}
       </nav>
 
-      <h1>{categoryLabel(locale, cat.name)}</h1>
+      <h1>{cat.name}</h1>
       {cat.descriptionHtml && (
         <div className="rte mt-4 text-lg text-slate" dangerouslySetInnerHTML={{ __html: cat.descriptionHtml }} />
       )}
@@ -113,7 +115,7 @@ async function CategoryView({ locale, slug, sp }: { locale: Locale; slug: string
                 href={localePath(locale, productHref(c.path))}
                 className="inline-block rounded-full border-[1.5px] border-line px-4 py-1.5 text-[0.95rem] font-medium hover:border-ink"
               >
-                {categoryLabel(locale, c.name)}
+                {c.name}
                 <span className="ml-2 text-slate">{c.productCount}</span>
               </Link>
             </li>
@@ -121,7 +123,7 @@ async function CategoryView({ locale, slug, sp }: { locale: Locale; slug: string
         </ul>
       )}
 
-      <Plp locale={locale} basePath={`/products/${slug.join("/")}`} result={result} params={query} />
+      <Plp locale={locale} basePath={`/${root}/${slug.join("/")}`} result={result} params={query} />
     </div>
   );
 }
@@ -130,9 +132,9 @@ async function CategoryView({ locale, slug, sp }: { locale: Locale; slug: string
 // The few specs worth surfacing next to the price; the rest are in the full table below.
 const HIGHLIGHT = ["Voltage", "Capacity (Ah)", "CCA", "Technology", "Warranty"];
 
-async function ProductView({ locale, slug }: { locale: Locale; slug: string[] }) {
+async function ProductView({ locale, root, slug }: { locale: Locale; root: string; slug: string[] }) {
   const t = getMessages(locale);
-  const product = await getProductByPath(bcPath(slug), locale);
+  const product = await getProductByPath(bcPath(root, slug), locale);
   if (!product) notFound();
 
   const [spotlights, guides] = await Promise.all([getSpotlights(locale), getGuides(locale)]);
@@ -183,7 +185,7 @@ async function ProductView({ locale, slug }: { locale: Locale; slug: string[] })
           <span key={c.path} className="flex gap-2">
             <span aria-hidden>/</span>
             <Link href={localePath(locale, productHref(c.path))} className="hover:text-ink hover:underline">
-              {categoryLabel(locale, c.name)}
+              {c.name}
             </Link>
           </span>
         ))}

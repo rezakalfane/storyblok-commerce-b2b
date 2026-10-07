@@ -54,7 +54,7 @@ Two systems of record, one composition layer:
 
 ## Request lifecycle
 
-1. **`proxy.ts`** runs first. `/fr/...` passes through. `/en/...` redirects (308) to the clean URL. `/home` and `/fr/home` (the URLs
+1. **`proxy.ts`** runs first (catalog URLs are translated: `/products/...` and `/fr/produits/...`, see [implementation.md](implementation.md#the-catalog-routes)). `/fr/...` passes through. `/en/...` redirects (308) to the clean URL. `/home` and `/fr/home` (the URLs
    the Visual Editor opens for the Home story) are rewritten to the home pages. Every other path is *rewritten* internally to
    `/en/...`, so English keeps clean URLs while still matching `app/[locale]`.
 2. **`app/[locale]/layout.tsx`** validates the locale, sets `<html lang>`, and renders the announcement bar, header

@@ -52,11 +52,12 @@ separate entry referenced by the page (and the free plan's 10-type cap shaped ot
 **Why.** Keeps existing URLs stable for the default language while using one `[locale]` route tree.
 **Rejected.** `/en` prefix for English (changes all URLs); sub-domains (needs DNS/hosting setup).
 
-### D9. Shared slugs across languages
-**Decision.** `/fr/blog/<english-slug>`.
-**Why.** The language switcher is exact (swap the prefix), one story serves both languages, and no slug-mapping step is needed.
-**Trade-off.** Less SEO benefit than translated slugs. The alternative needs per-locale slug lookup in the switcher and in
-`generateStaticParams`.
+### D9. Shared slugs for content; translated URLs for the catalog
+**Decision.** Content pages share slugs across languages (`/fr/blog/<english-slug>`). The catalog uses BigCommerce's translated URLs
+(`/fr/produits/<categorie>/<produit>`), with a language switcher that looks the page up.
+**Why.** For content, the switcher is exact (swap the prefix) and no slug mapping is needed. For the catalog, BigCommerce already translates
+and serves the paths, and French URLs are better for SEO and for visitors.
+**History.** The catalog first kept English slugs in French (paths restored from the default-language catalog); translated URLs replaced that.
 
 ### D10. Field-level translation, with fallback to English per field
 **Decision.** Translations live in the same story (`field__i18n__fr`) rather than in `fr/` folders of duplicated stories.
@@ -65,14 +66,13 @@ untranslated field returns the default value, so a partially translated site has
 **Rejected.** Folder-level translation (one copy of every story per language): it duplicates structure and every non-text field.
 **Trade-off.** Publishing is all-or-nothing across languages.
 
-### D11. Product text comes from BigCommerce Store Translations; URLs stay shared
-**Decision.** Do not translate product names or copy in code. Read translated content from the Storefront API with an
-`@shopperPreferences(locale: "fr")` directive (it ignores `Accept-Language`), and keep the English slugs in every language by
-restoring each `path` from the default-locale catalog (see [bigcommerce.md](bigcommerce.md)).
-**Why.** Product data belongs to BigCommerce. Translated URL paths (`/produits/...`) would need route, language-switcher and hreflang
-changes (reverses D9) and a product path only resolves in its own language.
-**Consequence.** A French product page costs one extra read (resolve the English path, then the translated content by id), and French
-listings add one cached lookup of English paths.
+### D11. Product text and URLs come from BigCommerce Store Translations
+**Decision.** Do not translate product names, copy or paths in code. Read translated content from the Storefront API with an
+`@shopperPreferences(locale: "fr")` directive (it ignores `Accept-Language`) and use the translated paths it returns (see [bigcommerce.md](bigcommerce.md)).
+**Why.** Product data belongs to BigCommerce, including its URLs; a translated path only resolves in its own language, so pages resolve the
+path of the page's language.
+**Consequence.** The catalog root segment per language is configuration (`CATALOG_ROOT`); a language switch on a catalog page costs one
+redirect through `/api/switch-locale`; filter values are translated, so attribute filters are not carried across languages.
 
 ## Editing
 
@@ -173,6 +173,6 @@ built, so the empty commit forces a fresh deployment.
 ## Open questions
 
 - Will buyers **sign in** (B2B Edition companies, price lists, quotes)? Today "your negotiated prices" is aspirational copy.
-- Do we want **translated slugs** for French SEO (reverses D9)?
+- Should attribute filters survive a language switch (their values are translated, so they are dropped today)?
 - Should the category tiles and home mosaic move into Storyblok?
 - A **publish webhook** to revalidate the `storyblok` cache tag, and an approval workflow.

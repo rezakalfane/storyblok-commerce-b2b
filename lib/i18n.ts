@@ -21,9 +21,20 @@ export const isLocale = (v: string): v is Locale => (LOCALES as readonly string[
 
 /** Prefixes an app-relative path with the locale (the default locale stays unprefixed). */
 export function localePath(locale: Locale, href: string): string {
-  if (!href.startsWith("/") || locale === DEFAULT_LOCALE) return href;
-  return href === "/" ? `/${locale}` : `/${locale}${href}`;
+  // The bare catalog link (header, footer, buttons) points at the language's own catalog root: /products, /fr/produits.
+  const target = /^\/products(?=\/?(\?|#|$))/.test(href) ? href.replace(/^\/products/, `/${CATALOG_ROOT[locale]}`) : href;
+  if (!target.startsWith("/") || locale === DEFAULT_LOCALE) return target;
+  return target === "/" ? `/${locale}` : `/${locale}${target}`;
 }
+
+/**
+ * First URL segment of the catalog in each language. BigCommerce translates the root category's path ("Products" is "Produits"),
+ * and every category and product path below it, so the catalog lives at /products in English and /fr/produits in French.
+ * Adding a language also needs its root segment here (see the root category's translated path in BigCommerce).
+ */
+export const CATALOG_ROOT: Record<Locale, string> = { en: "products", fr: "produits" };
+/** The language whose catalog root is `segment`, if any. */
+export const localeOfCatalogRoot = (segment: string): Locale | undefined => LOCALES.find((l) => CATALOG_ROOT[l] === segment);
 
 /** Removes a leading locale prefix from a pathname. */
 export function stripLocale(pathname: string): string {
@@ -257,6 +268,14 @@ export const formatDate = (locale: Locale, iso?: string) =>
   iso ? new Date(iso).toLocaleDateString(INTL_LOCALE[locale], { day: "numeric", month: "long", year: "numeric" }) : "";
 
 /** Next.js `metadata.alternates` for a path, so search engines link the language versions together. */
+/** hreflang + canonical from explicit per-language paths (each already carries its language prefix), e.g. translated catalog URLs. */
+export function alternatesFromPaths(locale: Locale, paths: Partial<Record<Locale, string>>) {
+  const languages: Record<string, string> = {};
+  for (const l of LOCALES) if (paths[l]) languages[l] = paths[l]!;
+  if (paths[DEFAULT_LOCALE]) languages["x-default"] = paths[DEFAULT_LOCALE]!;
+  return { canonical: paths[locale], languages };
+}
+
 export function alternatesFor(locale: Locale, path: string) {
   return {
     canonical: localePath(locale, path),

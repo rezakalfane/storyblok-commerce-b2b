@@ -1,8 +1,8 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { Suspense } from "react";
-import { getCartCount, getCategoryTree, productHref } from "@/lib/bigcommerce";
-import { CATEGORY_TILES, categoryLabel, getMessages, localePath, type Locale } from "@/lib/i18n";
+import { getCartCount, getCategoryTree, getTilePhotos, productHref } from "@/lib/bigcommerce";
+import { getMessages, localePath, type Locale } from "@/lib/i18n";
 import { getAnnouncement, getNavigation } from "@/lib/site";
 import { LocaleSwitcher } from "./locale-switcher";
 import { MegaMenu, type MegaColumn } from "./mega-menu";
@@ -61,14 +61,14 @@ async function CartLink({ locale }: { locale: Locale }) {
 
 /** Mega menu columns from the live BigCommerce category tree: top-level categories with their subcategories. */
 async function megaColumns(locale: Locale): Promise<MegaColumn[]> {
-  const tree = await getCategoryTree(locale);
+  const [tree, photos] = await Promise.all([getCategoryTree(locale), getTilePhotos()]);
   return (tree[0]?.children ?? []).map((c) => ({
-    label: categoryLabel(locale, c.name),
+    label: c.name,
     href: localePath(locale, productHref(c.path)),
-    photo: CATEGORY_TILES.find((t) => t.path === productHref(c.path))?.photo,
+    photo: photos.get(c.entityId),
     count: c.productCount,
     children: c.children.map((s) => ({
-      label: categoryLabel(locale, s.name),
+      label: s.name,
       href: localePath(locale, productHref(s.path)),
       count: s.productCount,
     })),

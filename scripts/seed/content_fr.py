@@ -165,7 +165,7 @@ NAV_FR = {
 
 HOME_FR = {
     "description": "Batteries professionnelles pour ateliers, flottes et distributeurs : vos prix, vos conditions de crédit et un réassort rapide.",
-    "rich_text": "<p>Connectez-vous pour voir vos prix négociés, commander sur compte et recommander en un clic. Parcourez nos <a href=\"/fr/products\">produits</a> et nos <a href=\"/fr/guides\">guides d'achat</a>, ou lisez le <a href=\"/fr/blog\">blog</a>.</p>",
+    "rich_text": "<p>Connectez-vous pour voir vos prix négociés, commander sur compte et recommander en un clic. Parcourez nos <a href=\"/fr/produits\">produits</a> et nos <a href=\"/fr/guides\">guides d'achat</a>, ou lisez le <a href=\"/fr/blog\">blog</a>.</p>",
     "blocks": [
         ("Vos prix, à chaque fois", "<p>Les prix contractuels et par paliers s'affichent partout où vous achetez, des résultats de recherche au panier, pour qu'il n'y ait aucune surprise au paiement.</p>"),
         ("Recommandez en quelques secondes", "<p>Enregistrez des listes pour chaque véhicule ou dépôt et rachetez toute une commande en un clic. La commande rapide vous permet de coller des références directement depuis un tableur.</p>"),
