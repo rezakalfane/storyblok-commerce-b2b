@@ -140,8 +140,8 @@ async function ProductView({ locale, slug }: { locale: Locale; slug: string[] })
   const relatedGuides = guides.filter((g) => g.recommended_bc_products?.includes(product.entityId));
 
   const specs = product.specs.map((s) => translateSpec(locale, s.name, s.value));
-  const highlights = HIGHLIGHT.map((n) => product.specs.find((s) => s.name === n))
-    .filter((s): s is { name: string; value: string } => Boolean(s))
+  const highlights = HIGHLIGHT.map((n) => product.specs.find((s) => s.key === n))
+    .filter((s): s is NonNullable<typeof s> => Boolean(s))
     .map((s) => translateSpec(locale, s.name, s.value));
 
   const hasSale = product.salePrice && product.price && product.salePrice.value < product.price.value;

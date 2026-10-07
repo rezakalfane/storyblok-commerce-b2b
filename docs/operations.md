@@ -102,7 +102,6 @@ Changing a variable needs a redeploy to take effect.
 - [ ] Confirm a Storyblok plan (the trial ends around 21 November 2026).
 - [ ] Replace all fictional sample content (authors, article text, FAQ policies, promotions, contact details).
 - [ ] Add a **publish webhook** to Next.js revalidation (tag `storyblok`) so published content shows immediately instead of within 60 seconds.
-- [ ] Add BigCommerce **Store Translations** for French product content (or accept English product names).
 - [ ] Decide the B2B account story: customer login, company price lists, quotes ([bigcommerce.md](bigcommerce.md)).
 - [ ] `sitemap.xml`, `robots.txt`, canonical host, analytics, error monitoring.
 - [ ] Review the cookie notice requirements for the cart cookie (`bc_cart_id`, strictly necessary).
@@ -135,7 +134,7 @@ Changing a variable needs a redeploy to take effect.
 ## Known limitations
 
 - No buyer sign-in, per-company pricing, quotes or order history (B2B Edition is not yet integrated).
-- Product text is English only.
+- Product, category and custom-field text is translated only where BigCommerce has Store Translations (French, plus any other locale added the same way).
 - Published content is cached for 60 seconds (no webhook revalidation yet).
 - There is no approval gate between editing and publishing (the ContentStack version had a workflow and publishing rule; Storyblok
   offers workflows and stages as a separate feature that is not configured here).

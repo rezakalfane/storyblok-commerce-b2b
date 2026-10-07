@@ -72,3 +72,8 @@ Read the docs rather than guess: the editor requests French at an `fr/…` path 
 workflow pages), revised `architecture`, `implementation`, `i18n`, `operations`, `seeding` and `decisions`, regenerated the architecture diagram, removed the
 ContentStack-only screenshots, and replaced this history. Storyblok app screenshots (content types, languages, Visual Editor) need a logged-in session and are not
 included yet.
+
+### French catalog content from BigCommerce
+**Prompt:** BigCommerce categories and products are translated already, so get the right content for the locale (it works in the Catalyst project).
+
+**Result:** The Storefront GraphQL API **ignores `Accept-Language`**; the Catalyst client selects the language with an `@shopperPreferences(locale: "fr")` directive on the operation (short code `fr`; `fr-FR` is not accepted). `gql()` now adds it for non-default locales, so product names and descriptions, categories, custom-field labels and facet values come back translated (151 products, 19 categories and 1,231 custom fields have French in BigCommerce). BigCommerce also translates URL paths and a product path only resolves in its own language, so the shared English slugs (D9) are kept by restoring each `path` from the default-locale catalog by entity id, resolving a product page through its English path and then reading the translated content by id. PDP key specs match on the English field name (`key`), the mega menu matches tiles by path, and cart links use the restored path. Verified on 23 French pages (no translated-path links), filters, the cart flow and English pages unchanged. Ported identically to the ContentStack and Amplience storefronts.

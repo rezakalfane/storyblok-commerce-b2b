@@ -65,7 +65,7 @@ async function megaColumns(locale: Locale): Promise<MegaColumn[]> {
   return (tree[0]?.children ?? []).map((c) => ({
     label: categoryLabel(locale, c.name),
     href: localePath(locale, productHref(c.path)),
-    photo: CATEGORY_TILES.find((t) => t.name === c.name)?.photo,
+    photo: CATEGORY_TILES.find((t) => t.path === productHref(c.path))?.photo,
     count: c.productCount,
     children: c.children.map((s) => ({
       label: categoryLabel(locale, s.name),

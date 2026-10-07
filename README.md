@@ -125,8 +125,8 @@ Start with **[docs/README.md](docs/README.md)**. Highlights:
 
 - **All sample content is fictional.** Author names, article text, FAQ policies, delivery claims and the
   `example.com` contact details are placeholders. Replace them before going public.
-- **Product names and brands are not translated**: they come from BigCommerce, where the store has no French
-  translations. Navigation, categories, specs and all UI text are translated.
+- **Product, category and custom-field text is translated by BigCommerce** (Store Translations) and read with the locale
+  directive; URLs keep the English slugs. UI text, navigation and fallbacks live in `lib/i18n.ts`.
 - The Storyblok space is on a **trial plan** that ends around 21 November 2026; confirm a plan for continued use.
 - Secrets live only in `.env.local` (gitignored). The personal access token is used by the seeding scripts, never by the
   running storefront; the live site reads published content with the Public token.

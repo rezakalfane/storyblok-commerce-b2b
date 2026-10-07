@@ -1,6 +1,6 @@
 // Server-only BigCommerce Storefront GraphQL client for the storefront channel.
 // Channel-scoped tokens must call the channel-specific host, not the default store host.
-import { formatMoney, INTL_LOCALE, type Locale, type Money } from "./i18n";
+import { DEFAULT_LOCALE, formatMoney, type Locale, type Money } from "./i18n";
 
 const ENDPOINT = `https://store-${process.env.BIGCOMMERCE_STORE_HASH}-${process.env.BIGCOMMERCE_CHANNEL_ID}.mybigcommerce.com/graphql`;
 
@@ -27,7 +27,8 @@ export type ProductDetail = BcProduct & {
   gtin?: string;
   weight?: { value: number; unit: string };
   images: { url: string; altText?: string }[];
-  specs: { name: string; value: string }[];
+  /** `name` is shown to visitors (translated); `key` is the default-locale name, stable across languages. */
+  specs: { name: string; value: string; key: string }[];
   bulkPricing: { min: number; max?: number; price?: number; percentOff?: number }[];
   breadcrumbs: { name: string; path: string }[];
   related: BcProduct[];
@@ -59,6 +60,22 @@ export type Cart = {
 // ---------------------------------------------------------------- transport
 type GqlOptions = { locale?: Locale; revalidate?: number | false };
 
+/**
+ * The Storefront GraphQL API ignores `Accept-Language`: translated content (names, descriptions, custom fields, categories,
+ * URL paths) is selected by an `@shopperPreferences(locale: "fr")` directive on the operation. Inserted before the operation's
+ * selection set, i.e. the first `{` outside the variable definitions.
+ */
+function withLocale(query: string, locale: Locale): string {
+  const q = query.trimStart().startsWith("{") ? `query ${query.trimStart()}` : query;
+  let depth = 0;
+  for (let i = 0; i < q.length; i++) {
+    if (q[i] === "(") depth++;
+    else if (q[i] === ")") depth--;
+    else if (q[i] === "{" && depth === 0) return `${q.slice(0, i)} @shopperPreferences(locale: "${locale}") ${q.slice(i)}`;
+  }
+  return q;
+}
+
 async function gql<T>(query: string, variables: Record<string, unknown>, opts: GqlOptions = {}): Promise<T> {
   const { locale, revalidate = 300 } = opts;
   const res = await fetch(ENDPOINT, {
@@ -66,9 +83,8 @@ async function gql<T>(query: string, variables: Record<string, unknown>, opts: G
     headers: {
       Authorization: `Bearer ${process.env.BIGCOMMERCE_STOREFRONT_TOKEN}`,
       "Content-Type": "application/json",
-      ...(locale ? { "Accept-Language": INTL_LOCALE[locale] } : {}),
     },
-    body: JSON.stringify({ query, variables }),
+    body: JSON.stringify({ query: locale && locale !== DEFAULT_LOCALE ? withLocale(query, locale) : query, variables }),
     ...(revalidate === false ? { cache: "no-store" as const } : { next: { revalidate } }),
   });
   const json = await res.json();
@@ -113,6 +129,48 @@ export const productHref = (path: string) => path.replace(/\/+$/, "") || "/";
 
 export const formatPrice = formatMoney;
 
+// ---------------------------------------------------------------- default-locale paths
+// In a translated language BigCommerce also translates URL paths ("/produits/..."). The storefront shares one URL scheme across
+// languages (the English slugs, only the prefix changes: see docs/decisions.md D9), so translated content is read with the
+// locale directive and every `path` is restored from the default-locale catalog by entity id.
+const PATH_TTL = 3600;
+
+async function defaultProductPaths(ids: number[]): Promise<Map<number, string>> {
+  const out = new Map<number, string>();
+  const unique = [...new Set(ids)].filter(Boolean);
+  for (let i = 0; i < unique.length; i += 50) {
+    const data = await gql<any>(
+      `query ProductPaths($ids: [Int!]) { site { products(entityIds: $ids, first: 50) { edges { node { entityId path } } } } }`,
+      { ids: unique.slice(i, i + 50) },
+      { revalidate: PATH_TTL },
+    );
+    for (const { node } of data.site.products.edges) out.set(node.entityId, node.path);
+  }
+  return out;
+}
+
+async function defaultCategoryPaths(): Promise<Map<number, string>> {
+  const out = new Map<number, string>();
+  const data = await gql<any>(
+    `{ site { categoryTree { entityId path children { entityId path children { entityId path } } } } }`,
+    {},
+    { revalidate: PATH_TTL },
+  );
+  const walk = (n: any) => {
+    out.set(n.entityId, n.path);
+    (n.children ?? []).forEach(walk);
+  };
+  data.site.categoryTree.forEach(walk);
+  return out;
+}
+
+/** Puts the default-locale path back on products read in another language. */
+async function restoreProductPaths(locale: Locale, products: { entityId: number; path: string }[]) {
+  if (locale === DEFAULT_LOCALE || !products.length) return;
+  const paths = await defaultProductPaths(products.map((p) => p.entityId));
+  for (const p of products) p.path = paths.get(p.entityId) ?? p.path;
+}
+
 // ---------------------------------------------------------------- catalog
 /** Live product cards (name, image, price) by BigCommerce product ID. Never throws. */
 export async function getBcProducts(ids: number[], locale: Locale): Promise<Map<number, BcProduct>> {
@@ -126,6 +184,7 @@ export async function getBcProducts(ids: number[], locale: Locale): Promise<Map<
       { locale },
     );
     for (const { node } of data.site.products.edges) out.set(node.entityId, toProduct(node));
+    await restoreProductPaths(locale, [...out.values()]);
   } catch (err) {
     console.error("[bigcommerce] product lookup failed:", err instanceof Error ? err.message : err);
   }
@@ -232,9 +291,11 @@ export async function searchCatalog(locale: Locale, opts: CatalogQuery): Promise
       { locale },
     );
     const r = data.site.search.searchProducts;
+    const products: BcProduct[] = r.products.edges.map((e: any) => toProduct(e.node));
+    await restoreProductPaths(locale, products);
     const brandFilter = r.filters.edges.map((e: any) => e.node).find((n: any) => n.__typename === "BrandSearchFilter");
     return {
-      products: r.products.edges.map((e: any) => toProduct(e.node)),
+      products,
       hasNext: r.products.pageInfo.hasNextPage,
       hasPrev: r.products.pageInfo.hasPreviousPage,
       endCursor: r.products.pageInfo.endCursor,
@@ -265,59 +326,86 @@ export async function searchCatalog(locale: Locale, opts: CatalogQuery): Promise
   }
 }
 
+const DETAIL_FIELDS = /* GraphQL */ `
+  ${CARD_FIELDS}
+  description
+  plainTextDescription(characterLimit: 300)
+  mpn
+  gtin
+  weight { value unit }
+  minPurchaseQuantity
+  maxPurchaseQuantity
+  availabilityV2 { status }
+  images { edges { node { url(width: 1200) altText } } }
+  customFields { edges { node { name value } } }
+  prices {
+    bulkPricing {
+      minimumQuantity
+      maximumQuantity
+      ... on BulkPricingFixedPriceDiscount { price }
+      ... on BulkPricingPercentageDiscount { percentOff }
+    }
+  }
+  categories(first: 1) {
+    edges { node { breadcrumbs(depth: 5) { edges { node { entityId name path } } } } }
+  }
+  relatedProducts(first: 4) { edges { node { ${CARD_FIELDS} } } }
+`;
+
+/** By storefront path: only resolves in the default locale (a translated language needs the translated path). */
 const DETAIL_QUERY = /* GraphQL */ `
   query ProductByPath($path: String!) {
-    site {
-      route(path: $path) {
-        node {
-          __typename
-          ... on Product {
-            ${CARD_FIELDS}
-            description
-            plainTextDescription(characterLimit: 300)
-            mpn
-            gtin
-            weight { value unit }
-            minPurchaseQuantity
-            maxPurchaseQuantity
-            availabilityV2 { status }
-            images { edges { node { url(width: 1200) altText } } }
-            customFields { edges { node { name value } } }
-            prices {
-              bulkPricing {
-                minimumQuantity
-                maximumQuantity
-                ... on BulkPricingFixedPriceDiscount { price }
-                ... on BulkPricingPercentageDiscount { percentOff }
-              }
-            }
-            categories(first: 1) {
-              edges { node { breadcrumbs(depth: 5) { edges { node { name path } } } } }
-            }
-            relatedProducts(first: 4) { edges { node { ${CARD_FIELDS} } } }
-          }
-        }
-      }
-    }
+    site { route(path: $path) { node { __typename ... on Product { ${DETAIL_FIELDS} } } } }
   }
 `;
 
-/** Full product detail by BigCommerce path (e.g. "/products/automotive-batteries/car-batteries/slug/"). */
+/** By id: used to read the translated content of a product already resolved through its default-locale path. */
+const DETAIL_BY_ID_QUERY = /* GraphQL */ `
+  query ProductById($id: Int!) {
+    site { product(entityId: $id) { ${DETAIL_FIELDS} } }
+  }
+`;
+
+/**
+ * Full product detail by the storefront (default-locale) path, e.g. "/products/automotive-batteries/car-batteries/slug/".
+ * In another language the product is first resolved in the default locale (path to id), then its translated content is read by id;
+ * paths, breadcrumbs and related-product links keep the default-locale slugs, and specs keep their default-locale name as `key`.
+ */
 export async function getProductByPath(path: string, locale: Locale): Promise<ProductDetail | null> {
   try {
-    const data = await gql<any>(DETAIL_QUERY, { path }, { locale });
-    const n = data.site.route.node;
-    if (!n || n.__typename !== "Product") return null;
-    const crumbs = n.categories.edges[0]?.node.breadcrumbs.edges.map((e: any) => e.node) ?? [];
+    const base = await gql<any>(DETAIL_QUERY, { path }, {});
+    const en = base.site.route.node;
+    if (!en || en.__typename !== "Product") return null;
+    let n = en;
+    if (locale !== DEFAULT_LOCALE) {
+      const translated = await gql<any>(DETAIL_BY_ID_QUERY, { id: en.entityId }, { locale });
+      n = translated.site.product ?? en;
+    }
+    const nodes = (conn: any) => conn.edges.map((e: any) => e.node);
+    const enPaths = new Map<number, string>(
+      (en.categories.edges[0] ? nodes(en.categories.edges[0].node.breadcrumbs) : []).map((c: any) => [c.entityId, c.path] as [number, string]),
+    );
+    const enSpecs = nodes(en.customFields).filter((f: any) => f.value);
+    const specs = nodes(n.customFields).filter((f: any) => f.value);
+    const crumbs = n.categories.edges[0]
+      ? nodes(n.categories.edges[0].node.breadcrumbs).map((c: any) => ({ name: c.name, path: enPaths.get(c.entityId) ?? c.path }))
+      : [];
+    // BigCommerce picks related products per language, so restore their paths by id rather than from the default-locale list.
+    const related: BcProduct[] = nodes(n.relatedProducts).map(toProduct);
+    await restoreProductPaths(locale, related);
     return {
-      ...toProduct(n),
+      ...toProduct({ ...n, path: en.path }),
       descriptionHtml: n.description ?? "",
       plainDescription: n.plainTextDescription ?? "",
       mpn: n.mpn || undefined,
       gtin: n.gtin || undefined,
       weight: n.weight ?? undefined,
-      images: n.images.edges.map((e: any) => e.node),
-      specs: n.customFields.edges.map((e: any) => e.node).filter((f: any) => f.value),
+      images: nodes(n.images),
+      specs: specs.map((f: any, i: number) => ({
+        name: f.name,
+        value: f.value,
+        key: enSpecs.length === specs.length ? enSpecs[i].name : f.name,
+      })),
       bulkPricing: (n.prices.bulkPricing ?? []).map((b: any) => ({
         min: b.minimumQuantity,
         max: b.maximumQuantity ?? undefined,
@@ -325,7 +413,7 @@ export async function getProductByPath(path: string, locale: Locale): Promise<Pr
         percentOff: b.percentOff ?? undefined,
       })),
       breadcrumbs: crumbs,
-      related: n.relatedProducts.edges.map((e: any) => toProduct(e.node)),
+      related,
       availability: n.availabilityV2?.status,
       minQty: n.minPurchaseQuantity ?? undefined,
       maxQty: n.maxPurchaseQuantity ?? undefined,
@@ -384,6 +472,10 @@ export async function getCart(cartId: string, locale: Locale): Promise<Cart | nu
     );
     if (!data.site.cart) return null;
     const cart = toCart(data.site.cart);
+    if (locale !== DEFAULT_LOCALE) {
+      const paths = await defaultProductPaths(cart.lines.map((l) => l.productId));
+      for (const l of cart.lines) l.url = paths.get(l.productId) ?? l.url;
+    }
     const urls = await gql<any>(
       `mutation($id: String!) { cart { createCartRedirectUrls(input: { cartEntityId: $id }) { redirectUrls { redirectedCheckoutUrl } } } }`,
       { id: cartId },
@@ -448,13 +540,14 @@ export type CategoryNode = { name: string; path: string; productCount: number; c
 export async function getCategoryTree(locale: Locale): Promise<CategoryNode[]> {
   try {
     const data = await gql<any>(
-      `{ site { categoryTree { name path productCount children { name path productCount children { name path productCount } } } } }`,
+      `{ site { categoryTree { entityId name path productCount children { entityId name path productCount children { entityId name path productCount } } } } }`,
       {},
       { locale },
     );
+    const defaultPaths = locale === DEFAULT_LOCALE ? undefined : await defaultCategoryPaths();
     const norm = (n: any): CategoryNode => ({
       name: n.name,
-      path: n.path,
+      path: defaultPaths?.get(n.entityId) ?? n.path,
       productCount: n.productCount,
       children: (n.children ?? []).map(norm),
     });
@@ -479,19 +572,20 @@ export async function getCategoryByPath(path: string, locale: Locale): Promise<C
     const data = await gql<any>(
       `query($path: String!) { site { route(path: $path) { node { __typename ... on Category {
         entityId name path description
-        breadcrumbs(depth: 5) { edges { node { name path } } }
+        breadcrumbs(depth: 5) { edges { node { entityId name path } } }
       } } } } }`,
       { path },
       { locale },
     );
     const n = data.site.route.node;
     if (!n || n.__typename !== "Category") return null;
+    const defaultPaths = locale === DEFAULT_LOCALE ? undefined : await defaultCategoryPaths();
     return {
       entityId: n.entityId,
       name: n.name,
-      path: n.path,
+      path: defaultPaths?.get(n.entityId) ?? n.path,
       descriptionHtml: n.description ?? "",
-      breadcrumbs: n.breadcrumbs.edges.map((e: any) => e.node),
+      breadcrumbs: n.breadcrumbs.edges.map((e: any) => ({ name: e.node.name, path: defaultPaths?.get(e.node.entityId) ?? e.node.path })),
     };
   } catch (err) {
     console.error("[bigcommerce] category failed:", err instanceof Error ? err.message : err);

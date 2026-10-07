@@ -48,7 +48,7 @@ The token is stored as `BIGCOMMERCE_STOREFRONT_TOKEN` and used only on the serve
 
 ## Client: `lib/bigcommerce.ts`
 
-`gql(query, variables, { locale, revalidate })` posts to the channel host. It sends `Accept-Language` for the locale and
+`gql(query, variables, { locale, revalidate })` posts to the channel host. For a non-default locale it adds the `@shopperPreferences` locale directive (see below) and
 caches reads for 300 s (`revalidate: false` = `no-store`, used for carts). Query fragments:
 
 - **`CARD_FIELDS`**: id, name, SKU, path, brand, default image (640 px), price / sale price / retail price, in-stock flag.
@@ -142,9 +142,19 @@ Test carts created during development are anonymous and expire on their own.
 
 - UI labels, category and subcategory names (curated map), spec names and common spec values are translated in
   `lib/i18n.ts`.
-- **Product names, descriptions and brands are not translated**: they come from BigCommerce, and this store has no French
-  translations. The client already sends `Accept-Language`, so adding **Store Translations** in BigCommerce translates
-  product content without code changes. Category names would also then come back translated, and the curated map becomes a fallback.
+- **Translated catalog content.** The store has French (and other) translations for products, categories and custom fields
+  (BigCommerce *Store Translations*). The Storefront API **ignores `Accept-Language`**: a locale is selected with an
+  `@shopperPreferences(locale: "fr")` directive on the operation, which `gql()` inserts for every non-default locale
+  (short code `fr`; `fr-FR` is not accepted). Names, descriptions, custom-field names and values, category names and facet
+  *values* then come back translated, while facet filter *names* stay English.
+- **URLs stay shared.** BigCommerce also translates URL paths (`/produits/...`), but the storefront keeps one URL scheme with the
+  English slugs ([decisions.md](decisions.md), D9). So in a translated language: product and category `path`s are restored from the
+  default-locale catalog by entity id (`restoreProductPaths`, `defaultCategoryPaths`); a product page resolves the English path
+  first and then reads the translated content **by id** (a product path only resolves in its own language); related products,
+  breadcrumbs and cart links use the restored paths; and spec labels keep their English name as `key`, which the key-spec
+  highlights match on.
+- UI labels, spec names and common spec values in `lib/i18n.ts` and the curated category map remain as fallbacks for anything
+  BigCommerce has not translated.
 - Prices are formatted per locale (`165,60 £GB` in French) but are always in the store's currency (GBP). Multi-currency
   would need BigCommerce currency settings and a currency choice in the UI.
 
