@@ -50,8 +50,8 @@ This is the same storefront as the ContentStack and Amplience versions (same pag
 <td><img src="docs/images/guide.jpg" alt="Buying guide"><br><sub>Buying guide with numbered steps and recommended products</sub></td>
 </tr>
 <tr>
-<td><img src="docs/images/home-fr.jpg" alt="The French home page"><br><sub>The French home page: content from the same Storyblok stories</sub></td>
-<td><img src="docs/images/blog-post.jpg" alt="Blog post"><br><sub>A blog post: rich text from Storyblok plus an author card</sub></td>
+<td><img src="docs/images/sb-visual-editor-home.jpg" alt="Visual Editor on the Home story"><br><sub>Visual Editor: select a block on the page, edit its fields in the sidebar</sub></td>
+<td><img src="docs/images/sb-block-library.jpg" alt="Storyblok block library"><br><sub>The Storyblok content model: content types and nestable blocks</sub></td>
 </tr>
 </table>
 

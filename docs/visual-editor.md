@@ -69,6 +69,18 @@ development).
 2. The Visual Editor shows the page. Click a block to select it, edit fields in the sidebar, switch language with the language menu.
 3. Typing updates the page; **Save** keeps the draft, **Publish** makes it live.
 
+![Visual Editor on the Home story](images/sb-visual-editor-home.jpg)
+*Home: the hero banner block is selected on the page and its fields (title, description, image, call to action) are in the sidebar.*
+
+![Visual Editor on a buying guide, English](images/sb-visual-editor-guide-en.jpg)
+*A buying guide in English: clicking the title selects the story; the sidebar shows its fields.*
+
+![Selecting a guide step in the Visual Editor](images/sb-visual-editor-guide-step.jpg)
+*Clicking a numbered step on the page selects that `guide_step` block (title, body, pro tip) inside the story.*
+
+![Visual Editor on a buying guide, French](images/sb-visual-editor-guide-fr.jpg)
+*The same guide with the language menu on French: the preview loads `/fr/guides/…`, and each translatable field shows its French value under the default-language text.*
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |

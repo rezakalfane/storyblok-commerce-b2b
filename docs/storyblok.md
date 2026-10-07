@@ -31,6 +31,9 @@ If `STORYBLOK_PUBLIC_TOKEN` is missing, the Preview token is used with `version=
 Nine **content types** (a component with *Content type* enabled) and six reusable **blocks** (nestable components). All are
 defined in `scripts/seed/schemas.py`.
 
+![The Block library in Storyblok](images/sb-block-library.jpg)
+*Block library: the nine content types (`Content Type`) and the nestable blocks (`Nestable`) of the model.*
+
 ### Content types
 
 | Component | Purpose | Key fields |
@@ -44,6 +47,9 @@ defined in `scripts/seed/schemas.py`.
 | `product_spotlight` | Editorial layer over a BigCommerce product | `title`, **`bc_product_id`**, `bc_sku`, `tagline`, `editorial_summary`, `key_features` (one per line), `use_cases` (`use_case`s), `badge` (option), `editorial_image`, `is_featured` |
 | `announcement_bar` | Scheduled site-wide banner | `title` (internal), `message`, `cta_label`, `cta_href`, `style`, `audience`, `starts_at`, `ends_at`, `is_active` |
 | `site_navigation` | Header, footer and contact details | `header_links` (`nav_link`s), `footer_columns` (`footer_column`s), `sales_email`, `support_phone`, `opening_hours`, `legal_text` |
+
+![Editing the buying_guide component](images/sb-content-type-buying-guide.jpg)
+*The `buying_guide` content type in the component editor: text, textarea, asset, single-option, number and blocks fields.*
 
 ### Blocks
 
@@ -62,6 +68,12 @@ and a block is edited in place in the Visual Editor.
 | `guides/` | `buying_guide` stories; the folder's root story is the guides index (a `page`) | `/guides`, `/guides/<slug>` |
 | `authors/`, `faqs/`, `spotlights/` | stories shown inside other pages | no page of their own |
 | `settings/` | `navigation` and the announcement bars | no page of their own |
+
+![The Content browser at the root of the space](images/sb-content.jpg)
+*Content: the root of the space, with the `home` and `faq` stories and the folders `blog`, `guides`, `authors`, `faqs`, `spotlights` and `settings`.*
+
+![The Buying guides folder](images/sb-content-guides.jpg)
+*Inside `guides/`: the folder root story (a Page, marked with the home icon) and the six buying guides.*
 
 A story and a folder cannot share a slug at the same level, so `/blog` and `/guides` are folder **root stories** (`is_startpage`),
 served by the Delivery API under the folder's slug (`blog`, `guides`).
@@ -91,6 +103,9 @@ served by the Delivery API under the folder's slug (`blog`, `guides`).
 | `site_navigation` | 1 |
 
 Plus 62 images in Assets. All content is fictional sample text, in English and French.
+
+![Assets in Storyblok](images/sb-assets.jpg)
+*Assets: the 62 images uploaded by the seeding script (hero photos, home blocks, spotlight cards, guide photos).*
 
 ## Reading content
 
