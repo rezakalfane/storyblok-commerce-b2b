@@ -1,13 +1,10 @@
-import { StoryblokLiveEditing } from "@storyblok/react/rsc";
-import type { PreviewParams } from "@/lib/storyblok";
+import { EditSupport as Storyblok } from "@/providers/cms/storyblok/edit-support";
+import { isPreviewRequest } from "@/lib/request";
 
 /**
- * Loads the Storyblok bridge for the story a page renders, only when the page is opened in the Visual Editor.
- * Click-to-edit works from the `data-blok-*` attributes in the HTML (see `editTags`). While editing, the bridge sends the
- * unsaved story to the server, which re-renders the page from it (live preview); saving reloads the page.
- * `relations` lists the reference fields that should arrive resolved in those live updates.
+ * Loads Storyblok's Visual Editor bridge, only for requests the proxy verified as an editor's preview (x-preview). Click-to-edit works
+ * from the edit attributes in the HTML (`$` on the content, see core/edit.ts); the bridge adds live updates on top.
  */
-export function EditSupport({ preview, entry, relations }: { preview?: PreviewParams; entry?: { id: number }; relations?: string[] }) {
-  if (!preview || !entry) return null;
-  return <StoryblokLiveEditing story={{ id: entry.id } as never} bridgeOptions={{ resolveRelations: relations }} />;
+export async function EditSupport() {
+  return (await isPreviewRequest()) ? <Storyblok /> : null;
 }

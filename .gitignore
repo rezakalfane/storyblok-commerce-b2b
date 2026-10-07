@@ -45,3 +45,6 @@ next-env.d.ts
 
 # python bytecode from scripts/seed
 __pycache__/
+
+# backups taken before destructive changes
+.backups/

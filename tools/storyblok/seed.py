@@ -48,15 +48,6 @@ def rt(spec):
     return richtext(spec)
 
 
-def hero(title, desc, cta, href, image, fr):
-    """A hero_banner blok. `fr` = (title, description, cta label)."""
-    b = blok("hero_banner", image=image, cta_href=href, full_width=True)
-    tr(b, "title", title, fr[0])
-    tr(b, "description", desc, fr[1])
-    tr(b, "cta_label", cta, fr[2])
-    return b
-
-
 def sections(only):
     return None if only is None else set(only.split(","))
 
@@ -114,36 +105,21 @@ def main():
                 "seo_keywords__i18n__fr": "commerce b2b, " + THEME_KEYWORDS_FR[ai],
             }
             tr(c, "title", title, t_fr)
-            tr(c, "body",
+            text = blok("text_block")
+            text["_uid"] = str(uuid.uuid5(uuid.NAMESPACE_URL, f"post-text-{slug}"))  # stable across runs
+            tr(text, "text",
                rt([("p", intro), ("h2", s1[0]), ("p", s1[1]), ("h2", s2[0]), ("p", s2[1]), ("h2", "Key takeaways"), ("ul", takeaways)]),
                rt([("p", intro_fr), ("h2", s1_fr[0]), ("p", s1_fr[1]), ("h2", s2_fr[0]), ("p", s2_fr[1]), ("h2", "À retenir"), ("ul", take_fr)]))
+            c["content"] = [text]
+            c["read_time"] = str(max(3, round((len(intro.split()) + len(s1[1].split()) + len(s2[1].split())) * 3 / 200)))
             tr(c, "seo_title", title, t_fr)
-            tr(c, "seo_description", intro[:155], textwrap.shorten(intro_fr, 155, placeholder="…"))
+            tr(c, "seo_description", textwrap.shorten(intro, 180, placeholder="…"), textwrap.shorten(intro_fr, 180, placeholder="…"))
             # related post always points at an earlier post, which already has a uuid
             rel = idx - 7 if idx >= 7 else (idx - 1 if idx >= 1 else None)
             if rel is not None:
                 c["related_post"] = post_uuid[rel]
             post_uuid.append(sb.upsert_story(f"blog/{slug}", title, c, folders["blog"]["id"])["uuid"])
             print(f"  [{idx + 1:02d}/36] {title[:60]}")
-
-        print("== blog listing")
-        hp = os.path.join(IMG, "blog-hero-photo.jpg")
-        photos.crop("bat_moto", (1200, 900), 0, hp)
-        L = BLOG_LISTING_FR
-        h = HEROES_FR["blog"]
-        latest = sorted(range(36), key=lambda i: -((flat[i][1] * 6 + flat[i][0])))
-        c = {"component": "blog_listing_page", "featured_posts": [post_uuid[i] for i in latest[:3]], "related_posts": [post_uuid[i] for i in latest[3:6]],
-             "hero": [hero("The B2B Commerce Blog", "Practical guidance on pricing, ordering, integrations, payments, sales and headless storefronts for B2B commerce teams.",
-                           "Browse articles", "/blog", asset(hp, "Blog hero photo"), (h[0], h[1], h[2]))]}
-        tr(c, "title", "Blog", L["title"])
-        tr(c, "search_placeholder", "Search articles", L["placeholder"])
-        tr(c, "search_button_label", "Search", L["search_button"])
-        tr(c, "featured_title", "Latest articles", L["from_blog_title"])
-        tr(c, "view_all_label", "View all articles", L["view_articles"])
-        tr(c, "related_title", "Keep reading", L["widget_title"])
-        tr(c, "seo_title", "The B2B Commerce Blog", h[0])
-        tr(c, "seo_description", "Articles on B2B pricing, ordering, integrations, payments, sales and composable storefronts.", h[1])
-        sb.upsert_startpage(folders["blog"], "Blog", c)
 
     # ---- product photos for guides / spotlights / home
     need_photos = want("spotlights") or want("pages")
@@ -227,49 +203,10 @@ def main():
         tr(c, "legal_text", NAV["legal"], NAV_FR["legal"])
         sb.upsert_story("settings/navigation", NAV["title"], c, folders["settings"]["id"])
 
-    # ---- pages: home (/), FAQ (/faq), buying guides (/guides)
+    # ---- pages: pages/home, pages/faq, pages/guides, pages/blog, each an ordered list of inline blocks
     if want("pages"):
-        print("== pages")
-        HERO_PHOTO = {"home": ("mea_voiture", (780, 1040)), "faq": ("alim", (1200, 900)), "guides": ("mea_pile", (1200, 900))}
-        faq_hero = ("Frequently asked questions", "Quick answers for trade buyers on ordering, pricing and credit, delivery, accounts and fitment.", "Browse buying guides", "/guides")
-        guides_hero = ("Buying guides", "Practical, step-by-step checklists for matching the right battery to the job, for workshops, fleets and leisure buyers.", "Read the FAQ", "/faq")
-        heroes = {"home": ("Commerce B2B", HOME["description"], "Browse buying guides", "/guides"), "faq": faq_hero, "guides": guides_hero}
-        hero_img = {}
-        for key, (name, size) in HERO_PHOTO.items():
-            hero_img[key] = asset(photos.crop(name, size, 0, os.path.join(IMG, f"hero-{key}-photo.jpg")), heroes[key][0])
-
-        def page_hero(key):
-            t, d, cta, href = heroes[key]
-            tf, df, cf, _ = HEROES_FR[key]
-            return [hero(t, d, cta, href, hero_img[key], (tf, df, cf))]
-
-        # home
-        blocks = []
-        for i, ((t, copy, layout, _), (t_fr, copy_fr)) in enumerate(zip(HOME["blocks"], HOME_FR["blocks"])):
-            p = os.path.join(IMG, f"home-block-photo-{i}.jpg")
-            photos.crop(["mea_chargeur", "mea_outillage", "mea_solaire"][i], (1200, 800), 0, p)
-            b = blok("feature_block", image=asset(p, t), layout=layout)
-            tr(b, "title", t, t_fr)
-            tr(b, "copy", sb.html_paragraphs(copy), sb.html_paragraphs(copy_fr))
-            blocks.append(b)
-        second = asset(photos.crop("mea_moto", (780, 1040), 0, os.path.join(IMG, "home-second-photo.jpg")), "Home hero second photo")
-        c = {"component": "page", "hero": page_hero("home"), "image": second, "blocks": blocks}
-        tr(c, "title", HOME["title"], HOME["title"])
-        tr(c, "description", HOME["description"], HOME_FR["description"])
-        tr(c, "intro", sb.html_paragraphs(HOME["rich_text"]), sb.html_paragraphs(HOME_FR["rich_text"]))
-        home = sb.find_story("home")
-        sb.api("PUT", f"/stories/{home['id']}", body={"story": {"name": "Home", "content": c}, "publish": 1})
-
-        for key, name, slug, fr_key in (("faq", "FAQ", "faq", "/faq"), ("guides", "Buying guides", "guides", "/guides")):
-            t_fr, d_fr = PAGES_FR[fr_key]
-            c = {"component": "page", "hero": page_hero(key)}
-            tr(c, "title", name, t_fr)
-            tr(c, "description", heroes[key][1], d_fr)
-            if key == "faq":
-                sb.upsert_story("faq", name, c)
-            else:
-                sb.upsert_startpage(folders["guides"], name, c)
-            print(f"  page: /{slug}")
+        import blocks
+        blocks.build_pages()
 
 
 if __name__ == "__main__":

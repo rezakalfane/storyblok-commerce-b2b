@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Create/update the Storyblok components (content model) and the space languages. Idempotent.
-Usage: python3 scripts/seed/schemas.py
+Usage: python3 tools/storyblok/schemas.py [--prune]
 
 Conventions: field-level translation (translatable fields get `__i18n__fr` siblings), enums store fixed English values,
 lists of strings are one-per-line textareas, references to other stories are `option(s)` fields over internal stories.
@@ -57,6 +57,10 @@ def ref(to, multiple=False):
     return _f("options" if multiple else "option", source="internal_stories", filter_content_type=[to], entry_appearance="card" if multiple else "link")
 
 
+def refs_any(to):
+    return _f("options", source="internal_stories", filter_content_type=list(to), entry_appearance="card")
+
+
 def bloks(*allowed, maximum=None):
     f = _f("bloks", restrict_components=True, component_whitelist=list(allowed))
     if maximum:
@@ -77,11 +81,19 @@ NESTABLE = {
     "hero_banner": ("Hero banner", {
         "title": text(required=True), "description": textarea(), "image": image(),
         "cta_label": text(), "cta_href": text(t=False, description="Path on the storefront, e.g. /guides"),
-        "full_width": boolean(True),
+        "second_image": image(), "variant": select(["default", "home"], "default"),
     }),
     "feature_block": ("Feature block", {
         "title": text(required=True), "copy": rich(), "image": image(),
         "layout": select(["image_left", "image_right"], "image_left"),
+    }),
+    "text_block": ("Text block", {"text": rich(required=True)}),
+    "image_block": ("Image block", {"image": image(required=True), "alt": text()}),
+    "video_block": ("Video block", {"video_title": text(), "src": text(t=False, required=True, description="Video file URL")}),
+    "collection_block": ("Collection block", {
+        "kind": select(["categories", "spotlights", "guides", "posts", "postListing", "guideListing", "faqs"], "guides"),
+        "title": text(), "link_label": text(), "search_placeholder": text(), "search_button_label": text(),
+        "items": refs_any(["buying_guide", "product_spotlight", "blog_post", "faq"]),
     }),
     "guide_step": ("Guide step", {"step_title": text(required=True), "step_body": textarea(required=True), "pro_tip": textarea()}),
     "use_case": ("Use case", {"use_case": text(required=True), "description": textarea()}),
@@ -91,19 +103,14 @@ NESTABLE = {
 
 ROOT_TYPES = {
     "page": ("Page", {
-        "title": text(required=True), "description": textarea(), "hero": bloks("hero_banner", maximum=1), "image": image(),
-        "intro": rich(), "blocks": bloks("feature_block"), **seo(),
-    }),
-    "blog_listing_page": ("Blog listing page", {
-        "title": text(required=True), "hero": bloks("hero_banner", maximum=1),
-        "search_placeholder": text(), "search_button_label": text(),
-        "featured_title": text(), "featured_posts": ref("blog_post", True), "view_all_label": text(),
-        "related_title": text(), "related_posts": ref("blog_post", True), **seo(),
+        "title": text(required=True), "description": textarea(),
+        "components": bloks("hero_banner", "feature_block", "text_block", "image_block", "video_block", "collection_block"), **seo(),
     }),
     "author": ("Author", {"name": text(t=False, required=True), "picture": image(required=True), "bio": textarea()}),
     "blog_post": ("Blog post", {
         "title": text(required=True), "author": ref("author"), "date": date(), "featured_image": image(required=True),
-        "body": rich(), "related_post": ref("blog_post"), "is_archived": boolean(), **seo(), "seo_keywords": text(),
+        "related_post": ref("blog_post"), "is_archived": boolean(), **seo(), "seo_keywords": text(),
+        "content": bloks("text_block", "image_block", "video_block"), "read_time": number(),
     }),
     "faq": ("FAQ", {
         "question": text(required=True), "answer": rich(required=True), "topic": select(TOPICS, TOPICS[0]),
@@ -144,6 +151,22 @@ def components():
         yield {"name": name, "display_name": display, "schema": schema, "is_root": True, "is_nestable": False}
 
 
+def remove_components(existing, prune):
+    """Components no longer in the model: listed, and with `prune` their stories and the component are deleted."""
+    keep = set(NESTABLE) | set(ROOT_TYPES)
+    for name, comp in existing.items():
+        if name in keep or name in ("feature", "grid", "teaser"):
+            continue
+        stories = sb.api("GET", "/stories", params={"contain_component": name, "per_page": 100}).get("stories", [])
+        if not prune:
+            print(f"  {name}: no longer in the model ({len(stories)} stories); run with --prune to delete")
+            continue
+        for st in stories:
+            sb.api("DELETE", f"/stories/{st['id']}")
+        sb.api("DELETE", f"/components/{comp['id']}")
+        print(f"  {name}: deleted with {len(stories)} stories")
+
+
 def main():
     space = sb.api("GET", "")["space"]
     if "fr" not in [l["code"] for l in space.get("languages", [])]:
@@ -162,6 +185,7 @@ def main():
         else:
             sb.api("POST", "/components", body={"component": comp})
             print(f"  created {comp['name']}")
+    remove_components(existing, "--prune" in sys.argv)
 
 
 if __name__ == "__main__":
